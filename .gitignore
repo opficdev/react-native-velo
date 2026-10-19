@@ -22,3 +22,12 @@ local.properties
 
 # Nitro 생성 코드는 `nitrogen` 실행으로 만든다
 nitrogen/
+
+# react-native-builder-bob 출력
+lib/
+
+# Bundler로 설치한 gem
+vendor/
+
+# TypeScript 증분 빌드 정보
+*.tsbuildinfo

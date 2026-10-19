@@ -1,0 +1,27 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": [
+    "velo"
+  ],
+  "ios": {
+    "iosModuleName": "Velo"
+  },
+  "android": {
+    "androidNamespace": [
+      "velo"
+    ],
+    "androidCxxLibName": "Velo"
+  },
+  "autolinking": {
+    "VeloStream": {
+      "all": {
+        "language": "c++",
+        "implementationClassName": "HybridVeloStream"
+      }
+    }
+  },
+  "ignorePaths": [
+    "**/node_modules",
+    "example"
+  ]
+}
