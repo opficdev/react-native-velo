@@ -1,0 +1,73 @@
+{
+  "name": "react-native-velo",
+  "version": "0.0.0",
+  "description": "React Native 네이티브에서 JS로 빈번하게 올라가는 이벤트 스트림의 전달 측정과 개선",
+  "main": "./lib/commonjs/index.js",
+  "module": "./lib/module/index.js",
+  "types": "./lib/typescript/src/index.d.ts",
+  "react-native": "src/index",
+  "source": "src/index",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "codegen": "nitrogen --logLevel=\"debug\"",
+    "build": "npm run typecheck && bob build"
+  },
+  "files": [
+    "src",
+    "lib",
+    "nitrogen",
+    "cpp",
+    "nitro.json",
+    "android/build.gradle",
+    "android/fix-prefab.gradle",
+    "android/gradle.properties",
+    "android/CMakeLists.txt",
+    "android/src",
+    "ios/**/*.h",
+    "ios/**/*.m",
+    "ios/**/*.mm",
+    "ios/**/*.cpp",
+    "ios/**/*.swift",
+    "*.podspec",
+    "README.md"
+  ],
+  "repository": "https://github.com/opficdev/react-native-velo.git",
+  "author": "opficdev",
+  "license": "MIT",
+  "bugs": "https://github.com/opficdev/react-native-velo/issues",
+  "homepage": "https://github.com/opficdev/react-native-velo#readme",
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@types/react": "19.2.0",
+    "eslint": "10.13.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "17.13.0",
+    "nitrogen": "0.37.1",
+    "prettier": "3.9.10",
+    "react": "19.3.0",
+    "react-native": "0.88.0",
+    "react-native-builder-bob": "0.40.18",
+    "react-native-nitro-modules": "0.37.1",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.71.2"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "*"
+  },
+  "react-native-builder-bob": {
+    "source": "src",
+    "output": "lib",
+    "targets": [
+      "commonjs",
+      "module",
+      [
+        "typescript",
+        {
+          "project": "tsconfig.json"
+        }
+      ]
+    ]
+  }
+}

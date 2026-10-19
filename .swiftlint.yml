@@ -1,0 +1,17 @@
+included:
+  - ios
+  - example/ios/VeloExample
+
+excluded:
+  - nitrogen
+  - example/ios/Pods
+
+line_length: 200
+
+disabled_rules:
+  - nesting
+  - multiple_closures_with_trailing_closure
+  - trailing_whitespace
+  - type_body_length
+  - cyclomatic_complexity
+  - function_body_length

@@ -1,0 +1,7 @@
+[tools]
+node = "24.22.0"
+java = "temurin-21.0.12+101.0.LTS"
+ruby = "4.0.7"
+"aqua:realm/SwiftLint" = "0.65.1"
+"aqua:pinterest/ktlint" = "1.8.0"
+"conda:clang-format" = "23.1.3"
