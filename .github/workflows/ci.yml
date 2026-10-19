@@ -1,0 +1,189 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  js:
+    name: JS
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: node
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'example/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          mise exec -- npm ci
+          cd example && mise exec -- npm ci
+
+      - name: Type check
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make typecheck
+
+      - name: Lint
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-ts
+
+  swift:
+    name: Swift lint
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up SwiftLint
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: aqua:realm/SwiftLint
+
+      - name: Lint
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-swift
+
+  kotlin:
+    name: Kotlin lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up ktlint
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: aqua:pinterest/ktlint
+
+      - name: Lint
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-kotlin
+
+  cpp:
+    name: C++ format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up clang-format
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: conda:clang-format
+
+      - name: Check format
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-cpp
+
+  ios:
+    name: iOS build
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node and Ruby
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: node ruby
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'example/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          mise exec -- npm ci
+          cd example && mise exec -- npm ci
+
+      - name: Generate Nitro code
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make codegen
+
+      - name: Install Pods
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make pods
+
+      - name: Build
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make build-ios
+
+  android:
+    name: Android build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node and Java
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: node java
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'example/package-lock.json') }}
+
+      - name: Install dependencies
+        run: |
+          mise exec -- npm ci
+          cd example && mise exec -- npm ci
+
+      - name: Generate Nitro code
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make codegen
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null
+          "$sdkmanager" "platforms;android-37.0" "build-tools;37.0.0" "ndk;27.1.12297006"
+
+      - name: Build
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make build-android
