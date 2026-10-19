@@ -1,0 +1,9 @@
+node_modules/
+lib/
+nitrogen/
+android/
+ios/
+cpp/
+example/android/
+example/ios/
+example/vendor/
