@@ -1,0 +1,24 @@
+# macOS
+.DS_Store
+
+# Node
+node_modules/
+*.log
+
+# Xcode, CocoaPods
+Pods/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+**/.xcode.env.local
+
+# Android, Gradle, CMake
+.gradle/
+.cxx/
+build/
+local.properties
+*.apk
+*.aab
+
+# Nitro 생성 코드는 `nitrogen` 실행으로 만든다
+nitrogen/
