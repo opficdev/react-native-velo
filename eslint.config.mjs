@@ -25,7 +25,7 @@ export default tseslint.config(
     extends: [tseslint.configs.recommended],
   },
   {
-    // Nitro 스펙은 기능이 없는 단계에서 HybridObject를 그대로 확장하는 빈 인터페이스를 허용한다.
+    // Nitro 인터페이스 정의 파일은 기능이 없는 단계에서 HybridObject를 그대로 확장하는 빈 인터페이스를 허용한다.
     files: ['src/specs/*.nitro.ts'],
     rules: {
       '@typescript-eslint/no-empty-object-type': [

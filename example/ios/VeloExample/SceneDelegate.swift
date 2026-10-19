@@ -37,11 +37,17 @@ class SceneDelegate: RCTDefaultReactNativeFactoryDelegate, UIWindowSceneDelegate
 
   }
 
-  func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+  func scene(
+    _ scene: UIScene,
+    openURLContexts URLContexts: Set<UIOpenURLContext>
+  ) {
     RCTLinkingManager.scene(scene, openURLContexts: URLContexts)
   }
 
-  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+  func scene(
+    _ scene: UIScene,
+    continue userActivity: NSUserActivity
+  ) {
     RCTLinkingManager.scene(scene, continue: userActivity)
   }
 
