@@ -8,13 +8,16 @@ TS_FILES := "**/*.{ts,tsx,js,cjs,mjs}"
 KOTLIN_FILES := "android/src/**/*.kt" "example/android/app/src/**/*.kt"
 CPP_FILES := $(wildcard cpp/*.hpp cpp/*.cpp)
 
-.PHONY: setup codegen pods typecheck lint lint-ts lint-swift lint-kotlin lint-cpp build-ios build-android
+.PHONY: setup hooks codegen pods typecheck lint lint-ts lint-swift lint-kotlin lint-cpp build-ios build-android
 
-setup:
+setup: hooks
 	$(MISE) npm ci
 	cd example && $(MISE) npm ci
 	$(MAKE) codegen
 	$(MAKE) pods
+
+hooks:
+	git config core.hooksPath .githooks
 
 codegen:
 	$(MISE) npm run codegen
