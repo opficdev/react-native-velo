@@ -110,6 +110,11 @@ bool BoundedQueue::paused() const {
   return paused_;
 }
 
+bool BoundedQueue::signalPending() const {
+  std::lock_guard<std::mutex> lock(mutex_);
+  return signalPending_;
+}
+
 bool BoundedQueue::fits(size_t size) const {
   // 뺄셈 비교를 통한 bytes_ + size 넘침 방지
   return entries_.size() < maxCount_ && size <= maxBytes_ - bytes_;

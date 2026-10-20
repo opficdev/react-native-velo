@@ -37,6 +37,9 @@ class BoundedQueue {
   // pauseProducer 정책에서 생산자를 멈춰야 하는 상태 여부
   [[nodiscard]] bool paused() const;
 
+  // 보낸 신호를 JS가 아직 pull로 받지 않은 상태 여부
+  [[nodiscard]] bool signalPending() const;
+
  private:
   using Buffer = std::shared_ptr<margelo::nitro::ArrayBuffer>;
 
