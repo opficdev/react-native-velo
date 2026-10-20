@@ -22,7 +22,7 @@ struct BenchWindow {
 
 // 일정한 속도로 버퍼를 만들어 sink에 넘기는 생성기
 // 전용 스레드 실행
-// 먼 예정 시각은 sleep 대기 뒤 마지막 150µs 스핀 대기
+// 먼 예정 시각은 sleep 대기 뒤 마지막 200µs 이상 스핀 대기
 final class BenchGenerator {
   private let size: Int
   private let perSecond: Int
@@ -112,7 +112,7 @@ final class BenchGenerator {
     var index = UInt64(0)
     while !isCancelled() {
       let scheduled = begin + index * interval
-      if scheduled - begin >= durationNs {
+      if durationNs <= scheduled - begin {
         break
       }
       while true {

@@ -113,7 +113,7 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     count: Double
   ) throws {
     for index in 0..<Int(count) {
-      let buffer: BenchBuffer = makeBenchBuffer(
+      let buffer = makeBenchBuffer(
         size: Int(size),
         tEmit: Double(benchNowNs()),
         seq: Double(index)
