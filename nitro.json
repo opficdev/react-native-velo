@@ -13,10 +13,10 @@
     "androidCxxLibName": "Velo"
   },
   "autolinking": {
-    "VeloStream": {
+    "EventQueue": {
       "all": {
         "language": "c++",
-        "implementationClassName": "HybridVeloStream"
+        "implementationClassName": "HybridEventQueue"
       }
     }
   },

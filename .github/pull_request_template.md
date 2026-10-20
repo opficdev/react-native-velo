@@ -26,7 +26,7 @@ flowchart LR
 		queue["제한 큐 (변경)"]
 	end
 	subgraph Nitro["Nitro"]
-		stream["VeloStream"]
+		stream["EventQueue"]
 	end
 	subgraph JS["JS"]
 		consumer["소비자"]

@@ -1,8 +1,8 @@
 import { NitroModules } from 'react-native-nitro-modules';
-import type { VeloStream } from './specs/velo-stream.nitro';
+import type { EventQueue } from './specs/event-queue.nitro';
 
-export type { VeloStream };
+export type { EventQueue };
 
 export function createVeloStream() {
-  return NitroModules.createHybridObject<VeloStream>('VeloStream');
+  return NitroModules.createHybridObject<EventQueue>('EventQueue');
 }
