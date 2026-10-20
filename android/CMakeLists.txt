@@ -12,6 +12,7 @@ add_compile_options(-DRN_SERIALIZABLE_STATE=1)
 add_library(${PACKAGE_NAME} SHARED
 	src/main/cpp/cpp-adapter.cpp
 	../cpp/core/BoundedQueue.cpp
+	../cpp/nitro/EventQueueCore.cpp
 )
 
 # Add Nitrogen specs :)
@@ -20,6 +21,7 @@ include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/Velo+autolinking.cmake
 # Set up local includes
 include_directories(
         "src/main/cpp"
+        "../cpp/core"
         "../cpp/nitro"
 )
 
