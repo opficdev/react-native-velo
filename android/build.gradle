@@ -94,6 +94,13 @@ android {
   buildFeatures {
     buildConfig true
     prefab true
+    prefabPublishing true
+  }
+
+  prefab {
+    EventStream {
+      headers "${project.buildDir}/headers/eventstream/"
+    }
   }
 
   buildTypes {
@@ -138,6 +145,16 @@ dependencies {
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
 }
+
+tasks.register('prepareHeaders', Copy) {
+  from fileTree('../nitrogen/generated/shared/c++').filter { it.isFile() }
+  from fileTree('../nitrogen/generated/android/c++').filter { it.isFile() }
+  include "*.hpp"
+  into "${project.buildDir}/headers/eventstream/EventStream/"
+  includeEmptyDirs = false
+}
+
+preBuild.dependsOn(prepareHeaders)
 
 if (isNewArchitectureEnabled()) {
   react {
