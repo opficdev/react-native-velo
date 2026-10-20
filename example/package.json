@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "example-producer": "file:./producer",
     "react": "19.3.0",
     "react-native": "0.88.0",
     "react-native-nitro-modules": "0.37.1",
