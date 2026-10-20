@@ -6,7 +6,8 @@ import { subscribe } from './subscribe';
  * 네이티브 이벤트를 묶음으로 전달하는 스트림
  */
 export interface EventStream {
-  // 스트림당 구독자는 하나이며 두 번째 호출은 오류
+  // 스트림당 구독자 하나
+  // 두 번째 호출은 오류
   // 반환값은 구독 해제 함수
   subscribe(onBatch: (batch: PullResult) => void): () => void;
 }
@@ -23,7 +24,8 @@ export function createEventStream(): EventStream {
       const release = subscribe(queue, onBatch);
       const current = () => {
         release();
-        // 이전 구독의 해제 함수가 새 구독을 지우지 않도록 같은 구독일 때만 비움
+        // 이전 구독의 해제 함수가 새 구독을 지우는 문제 방지
+        // 같은 구독일 때만 초기화
         if (unsubscribe === current) {
           unsubscribe = undefined;
         }

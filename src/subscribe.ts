@@ -39,7 +39,7 @@ export function subscribe(
 
   queue.setSignalListener(() => {
     // 해제 뒤에 도착한 신호와 양보 중인 신호는 무시
-    // 남은 항목은 resume의 pull 뒤에 코어가 다시 알림
+    // 남은 항목은 resume의 pull 뒤 코어의 신호 재전송으로 처리
     if (!active || timer !== undefined) {
       return;
     }
