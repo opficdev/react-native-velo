@@ -19,7 +19,7 @@ include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/Velo+autolinking.cmake
 # Set up local includes
 include_directories(
         "src/main/cpp"
-        "../cpp"
+        "../cpp/nitro"
 )
 
 find_library(LOG_LIB log)

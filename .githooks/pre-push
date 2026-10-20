@@ -78,10 +78,10 @@ do
 		--output-format json \
 		--json-schema "$schema_json" \
 		<<EOF > "$result"
-You are the reviewer for a user-authorized pre-push review in $(pwd).
+You are code_reviewer for a user-authorized pre-push review in $(pwd).
 This is a separate Claude Code CLI review. Perform the review yourself without spawning subagents or other agents.
 
-Read CLAUDE.md and fetch its react-native-velo Agent Policy index through the connected Notion MCP before inspecting code. Verify that the index is under the react-native-velo page and use only policies marked Active. Load the Active General, iOS, React Native, and Claude Code policies and every Active task-specific policy whose route matches this review.
+Read CLAUDE.md and fetch its react-native-velo Agent Policy index through the connected Notion MCP before inspecting code. Verify that the index is under the react-native-velo page and use only policies marked Active. Load the Active General, iOS, React Native, and Claude Code policies and every Active task-specific policy whose route matches this review. Apply the current code_reviewer contract.
 If Notion MCP, the policy index, any required Active policy, or required code is unavailable, set verdict to "BLOCKED" and report the missing source. Do not use historical memory as a policy fallback.
 
 Review only the committed changes from $base to $local_sha for $local_ref being pushed to $remote_ref.

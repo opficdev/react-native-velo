@@ -6,7 +6,7 @@ ANDROID_ARCHITECTURES ?= arm64-v8a
 
 TS_FILES := "**/*.{ts,tsx,js,cjs,mjs}"
 KOTLIN_FILES := "android/src/**/*.kt" "example/android/app/src/**/*.kt"
-CPP_FILES := $(wildcard cpp/*.hpp cpp/*.cpp)
+CPP_FILES := $(wildcard cpp/core/*.hpp cpp/core/*.cpp cpp/nitro/*.hpp cpp/nitro/*.cpp)
 
 .PHONY: setup hooks codegen pods typecheck lint lint-ts lint-swift lint-kotlin lint-cpp build-ios build-android
 
