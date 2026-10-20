@@ -18,8 +18,16 @@ Pod::Spec.new do |s|
     "ios/**/*.{swift}",
     # Autolinking/Registration (Objective-C++)
     "ios/**/*.{m,mm}",
+    # Swift에서 부르는 C++ 헤더
+    "ios/**/*.hpp",
     # Implementation (C++ objects)
     "cpp/**/*.{hpp,cpp}",
+  ]
+
+  # Swift 모듈에 공개하는 C++ 헤더
+  s.public_header_files = [
+    "cpp/nitro/EventQueueCore.hpp",
+    "ios/EventQueueCoreSwift.hpp",
   ]
 
   load 'nitrogen/generated/ios/Velo+autolinking.rb'

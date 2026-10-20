@@ -14,8 +14,12 @@
   },
   "autolinking": {
     "EventQueue": {
-      "all": {
-        "language": "c++",
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridEventQueue"
+      },
+      "android": {
+        "language": "kotlin",
         "implementationClassName": "HybridEventQueue"
       }
     }
