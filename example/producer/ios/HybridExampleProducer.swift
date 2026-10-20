@@ -28,9 +28,8 @@ final class HybridExampleProducer: HybridExampleProducerSpec {
           return
         }
         count += 1
-        // EventStream을 import한 파일에서는 ArrayBuffer 단독 표기가 @_spi 오류를 내므로 NitroModules 한정 표기
-        let buffer = NitroModules.ArrayBuffer.allocate(size: 8)
-        UnsafeMutableRawPointer(buffer.data).storeBytes(of: count, as: UInt64.self)
+        // 이 파일에 버퍼 타입 이름이 없으면 push가 보이지 않아 타입 명시
+        let buffer: CounterBuffer = makeCounterBuffer(count)
         // dispose된 큐의 push는 오류 없이 무시되므로 결과 확인 생략
         try? stream.push(data: buffer)
       }
