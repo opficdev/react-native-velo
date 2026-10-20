@@ -14,7 +14,8 @@ namespace velo::core {
 
 // 건수와 바이트로 크기를 제한하는 큐
 // 항목 보관, 정책 적용, 건수 누적, 신호 판단의 단일 잠금 처리
-// 생산자는 임의 스레드의 push, 소비자는 한 스레드의 pull 전제
+// 임의 스레드의 생산자 push 전제
+// 한 스레드의 소비자 pull 전제
 class BoundedQueue {
  public:
   // maxCount나 maxBytes가 0일 때 std::invalid_argument 발생
