@@ -19,7 +19,7 @@
         "implementationClassName": "HybridEventQueue"
       },
       "android": {
-        "language": "c++",
+        "language": "kotlin",
         "implementationClassName": "HybridEventQueue"
       }
     }

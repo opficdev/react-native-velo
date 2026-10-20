@@ -15,7 +15,7 @@ export interface PullResult {
  */
 export interface EventQueue extends HybridObject<{
   ios: 'swift';
-  android: 'c++';
+  android: 'kotlin';
 }> {
   // 가져갈 항목이 생겼음을 알리는 신호 콜백 등록
   // 인자를 생략하면 등록 해제
