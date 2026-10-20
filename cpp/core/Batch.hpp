@@ -5,7 +5,7 @@
 #include <memory>
 #include <vector>
 
-namespace velo::core {
+namespace eventstream::core {
 
 // pull이 돌려주는 묶음
 struct Batch {
@@ -19,4 +19,4 @@ struct Batch {
   bool hasMore = false;
 };
 
-}  // namespace velo::core
+}  // namespace eventstream::core

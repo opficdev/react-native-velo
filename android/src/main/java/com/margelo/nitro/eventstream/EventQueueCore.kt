@@ -1,4 +1,4 @@
-package com.margelo.nitro.velo
+package com.margelo.nitro.eventstream
 
 import com.facebook.jni.HybridData
 import com.facebook.proguard.annotations.DoNotStrip

@@ -10,7 +10,7 @@
 #include "Batch.hpp"
 #include "FullPolicy.hpp"
 
-namespace velo::core {
+namespace eventstream::core {
 
 // 건수와 바이트로 크기를 제한하는 큐
 // 항목 보관, 정책 적용, 건수 누적, 신호 판단의 단일 잠금 처리
@@ -63,4 +63,4 @@ class BoundedQueue {
   bool paused_ = false;
 };
 
-}  // namespace velo::core
+}  // namespace eventstream::core

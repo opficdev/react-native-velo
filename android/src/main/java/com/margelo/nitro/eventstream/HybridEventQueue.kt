@@ -1,4 +1,4 @@
-package com.margelo.nitro.velo
+package com.margelo.nitro.eventstream
 
 import com.facebook.proguard.annotations.DoNotStrip
 import com.margelo.nitro.core.ArrayBuffer

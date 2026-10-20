@@ -4,7 +4,7 @@
 
 #include "EventQueueCore.hpp"
 
-namespace margelo::nitro::velo {
+namespace margelo::nitro::eventstream {
 
 // Swift 클로저를 신호 콜백으로 등록하는 호출
 // std::function을 직접 받을 수 없는 Swift용 진입점
@@ -12,4 +12,4 @@ inline void setSignalListener(const EventQueueCore& core, const SwiftClosure& li
   core.setSignalListener(listener.getFunction());
 }
 
-}  // namespace margelo::nitro::velo
+}  // namespace margelo::nitro::eventstream

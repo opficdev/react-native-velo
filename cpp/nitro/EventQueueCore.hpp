@@ -6,7 +6,7 @@
 
 #include "PullResult.hpp"
 
-namespace margelo::nitro::velo {
+namespace margelo::nitro::eventstream {
 
 // 큐와 신호 상태를 묶어 iOS와 Android 구현이 함께 쓰는 연결부
 // 복사한 핸들끼리 같은 상태 공유
@@ -45,4 +45,4 @@ class EventQueueCore {
   std::shared_ptr<State> state_;
 };
 
-}  // namespace margelo::nitro::velo
+}  // namespace margelo::nitro::eventstream

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace velo::core {
+namespace eventstream::core {
 
 // 큐가 가득 찼을 때 적용하는 처리 방식
 enum class FullPolicy {
@@ -15,4 +15,4 @@ enum class FullPolicy {
   pauseProducer,
 };
 
-}  // namespace velo::core
+}  // namespace eventstream::core

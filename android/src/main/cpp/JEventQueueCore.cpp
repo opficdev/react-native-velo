@@ -4,7 +4,7 @@
 #include <functional>
 #include <utility>
 
-namespace margelo::nitro::velo {
+namespace margelo::nitro::eventstream {
 
 void JEventQueueCore::registerNatives() {
   registerHybrid({
@@ -49,4 +49,4 @@ void JEventQueueCore::dispose() {
   core_.dispose();
 }
 
-}  // namespace margelo::nitro::velo
+}  // namespace margelo::nitro::eventstream

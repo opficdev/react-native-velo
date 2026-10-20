@@ -3,7 +3,7 @@ require "json"
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
 Pod::Spec.new do |s|
-  s.name         = "Velo"
+  s.name         = "EventStream"
   s.version      = package["version"]
   s.summary      = package["description"]
   s.homepage     = package["homepage"]
@@ -30,7 +30,7 @@ Pod::Spec.new do |s|
     "ios/EventQueueCoreSwift.hpp",
   ]
 
-  load 'nitrogen/generated/ios/Velo+autolinking.rb'
+  load 'nitrogen/generated/ios/EventStream+autolinking.rb'
   add_nitrogen_files(s)
 
   s.dependency 'React-jsi'
