@@ -14,7 +14,7 @@ export interface PullResult {
  * 네이티브 제한 큐를 통해 이벤트를 JS로 전달하는 스트림
  */
 export interface EventQueue extends HybridObject<{
-  ios: 'c++';
+  ios: 'swift';
   android: 'c++';
 }> {
   // 가져갈 항목이 생겼음을 알리는 신호 콜백 등록
