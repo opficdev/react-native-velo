@@ -18,7 +18,7 @@ using BoundedQueue = ::velo::core::BoundedQueue;
 using FullPolicy = ::velo::core::FullPolicy;
 
 // 큐 생성 값의 고정 상수
-// 스트림 생성 시 설정은 래퍼 이슈의 범위
+// 스트림 생성 시 설정은 측정 뒤 별도 이슈에서 결정
 constexpr size_t defaultMaxCount = 1024;
 constexpr size_t defaultMaxBytes = 16 * 1024 * 1024;
 
