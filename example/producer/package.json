@@ -1,0 +1,23 @@
+{
+  "name": "example-producer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "react-native-velo의 외부 생산자 연결을 확인하는 예제 생산자 모듈",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "react-native": "src/index",
+  "source": "src/index",
+  "scripts": {
+    "codegen": "nitrogen --logLevel=\"debug\""
+  },
+  "repository": "https://github.com/opficdev/react-native-velo.git",
+  "author": "opficdev",
+  "license": "MIT",
+  "homepage": "https://github.com/opficdev/react-native-velo#readme",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*",
+    "react-native-nitro-modules": "*",
+    "react-native-velo": "*"
+  }
+}

@@ -3,7 +3,7 @@ require "json"
 package = JSON.parse(File.read(File.join(__dir__, "package.json")))
 
 Pod::Spec.new do |s|
-  s.name         = "Velo"
+  s.name         = "ExampleProducer"
   s.version      = package["version"]
   s.summary      = package["description"]
   s.homepage     = package["homepage"]
@@ -18,22 +18,13 @@ Pod::Spec.new do |s|
     "ios/**/*.{swift}",
     # Autolinking/Registration (Objective-C++)
     "ios/**/*.{m,mm}",
-    # Swift에서 부르는 C++ 헤더
-    "ios/**/*.hpp",
-    # Implementation (C++ objects)
-    "cpp/**/*.{hpp,cpp}",
   ]
 
-  # Swift 모듈에 공개하는 C++ 헤더
-  s.public_header_files = [
-    "cpp/nitro/EventQueueCore.hpp",
-    "ios/EventQueueCoreSwift.hpp",
-  ]
-
-  load 'nitrogen/generated/ios/Velo+autolinking.rb'
+  load 'nitrogen/generated/ios/ExampleProducer+autolinking.rb'
   add_nitrogen_files(s)
 
   s.dependency 'React-jsi'
   s.dependency 'React-callinvoker'
+  s.dependency 'EventStream'
   install_modules_dependencies(s)
 end

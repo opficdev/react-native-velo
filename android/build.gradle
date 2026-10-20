@@ -20,7 +20,7 @@ def isNewArchitectureEnabled() {
 
 apply plugin: "com.android.library"
 apply plugin: 'org.jetbrains.kotlin.android'
-apply from: '../nitrogen/generated/android/Velo+autolinking.gradle'
+apply from: '../nitrogen/generated/android/EventStream+autolinking.gradle'
 apply from: "./fix-prefab.gradle"
 
 if (isNewArchitectureEnabled()) {
@@ -28,15 +28,15 @@ if (isNewArchitectureEnabled()) {
 }
 
 def getExtOrDefault(name) {
-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["Velo_" + name]
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["EventStream_" + name]
 }
 
 def getExtOrIntegerDefault(name) {
-  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["Velo_" + name]).toInteger()
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["EventStream_" + name]).toInteger()
 }
 
 android {
-  namespace "com.velo"
+  namespace "com.eventstream"
 
   ndkVersion getExtOrDefault("ndkVersion")
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
@@ -94,6 +94,13 @@ android {
   buildFeatures {
     buildConfig true
     prefab true
+    prefabPublishing true
+  }
+
+  prefab {
+    EventStream {
+      headers "${project.buildDir}/headers/eventstream/"
+    }
   }
 
   buildTypes {
@@ -139,10 +146,20 @@ dependencies {
   implementation project(":react-native-nitro-modules")
 }
 
+tasks.register('prepareHeaders', Copy) {
+  from fileTree('../nitrogen/generated/shared/c++').filter { it.isFile() }
+  from fileTree('../nitrogen/generated/android/c++').filter { it.isFile() }
+  include "*.hpp"
+  into "${project.buildDir}/headers/eventstream/EventStream/"
+  includeEmptyDirs = false
+}
+
+preBuild.dependsOn(prepareHeaders)
+
 if (isNewArchitectureEnabled()) {
   react {
     jsRootDir = file("../src/")
-    libraryName = "Velo"
-    codegenJavaPackageName = "com.velo"
+    libraryName = "EventStream"
+    codegenJavaPackageName = "com.eventstream"
   }
 }

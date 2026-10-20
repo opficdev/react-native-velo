@@ -10,12 +10,12 @@
 
 #include "BoundedQueue.hpp"
 
-namespace margelo::nitro::velo {
+namespace margelo::nitro::eventstream {
 
 namespace {
 
-using BoundedQueue = ::velo::core::BoundedQueue;
-using FullPolicy = ::velo::core::FullPolicy;
+using BoundedQueue = ::eventstream::core::BoundedQueue;
+using FullPolicy = ::eventstream::core::FullPolicy;
 
 // 큐 생성 값의 고정 상수
 // 스트림 생성 시 설정은 측정 뒤 별도 이슈에서 결정
@@ -117,4 +117,4 @@ void EventQueueCore::clearSignalListener() const {
 
 void EventQueueCore::dispose() const { state_->dispose(); }
 
-}  // namespace margelo::nitro::velo
+}  // namespace margelo::nitro::eventstream

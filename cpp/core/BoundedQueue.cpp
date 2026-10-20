@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <utility>
 
-namespace velo::core {
+namespace eventstream::core {
 
 using margelo::nitro::ArrayBuffer;
 
@@ -128,4 +128,4 @@ void BoundedQueue::evictFront(std::vector<Buffer>& evicted) {
   ++dropped_;
 }
 
-}  // namespace velo::core
+}  // namespace eventstream::core

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://nitro.margelo.com/nitro.schema.json",
+  "cxxNamespace": [
+    "exampleproducer"
+  ],
+  "ios": {
+    "iosModuleName": "ExampleProducer"
+  },
+  "android": {
+    "androidNamespace": [
+      "exampleproducer"
+    ],
+    "androidCxxLibName": "ExampleProducer"
+  },
+  "autolinking": {
+    "ExampleProducer": {
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridExampleProducer"
+      },
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridExampleProducer"
+      }
+    }
+  },
+  "ignorePaths": [
+    "**/node_modules"
+  ]
+}
