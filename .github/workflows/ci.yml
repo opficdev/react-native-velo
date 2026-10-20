@@ -88,6 +88,44 @@ jobs:
           MISE_AUTO_INSTALL: 0
         run: make lint-kotlin
 
+  producer-swift:
+    name: Example producer Swift lint
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up SwiftLint
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: aqua:realm/SwiftLint
+
+      - name: Lint
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-producer-swift
+
+  producer-kotlin:
+    name: Example producer Kotlin lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up ktlint
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: aqua:pinterest/ktlint
+
+      - name: Lint
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make lint-producer-kotlin
+
   cpp:
     name: C++ format
     runs-on: ubuntu-latest
@@ -137,6 +175,11 @@ jobs:
           MISE_AUTO_INSTALL: 0
         run: make codegen
 
+      - name: Generate Nitro code of example producer
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make codegen-producer
+
       - name: Install Pods
         env:
           MISE_AUTO_INSTALL: 0
@@ -176,6 +219,11 @@ jobs:
         env:
           MISE_AUTO_INSTALL: 0
         run: make codegen
+
+      - name: Generate Nitro code of example producer
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make codegen-producer
 
       - name: Install Android SDK packages
         run: |
