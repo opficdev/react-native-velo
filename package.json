@@ -1,7 +1,7 @@
 {
   "name": "react-native-velo",
   "version": "0.0.0",
-  "description": "React Native 네이티브에서 JS로 빈번하게 올라가는 이벤트 스트림의 전달 측정과 개선",
+  "description": "React Native에서 네이티브가 JS로 자주 보내는 이벤트 스트림의 전달을 개선하는 라이브러리",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",

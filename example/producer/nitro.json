@@ -22,6 +22,16 @@
         "language": "kotlin",
         "implementationClassName": "HybridExampleProducer"
       }
+    },
+    "BenchProducer": {
+      "ios": {
+        "language": "swift",
+        "implementationClassName": "HybridBenchProducer"
+      },
+      "android": {
+        "language": "kotlin",
+        "implementationClassName": "HybridBenchProducer"
+      }
     }
   },
   "ignorePaths": [
