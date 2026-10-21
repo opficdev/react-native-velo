@@ -117,7 +117,7 @@ function record(pace: Pace, count: number, items: number, ms: number) {
   const cur = { items, ms };
   const { last, marginMs } = pace;
   pace.requested = count;
-  if (count <= items) {
+  if (count <= items && count < pullCount) {
     pace.checkIn -= 1;
   }
   if (marginMs !== undefined) {
