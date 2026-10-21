@@ -6,7 +6,7 @@ const pullCount = 64;
 const budgetMs = 8;
 // 큐가 비지 않은 채 이어진 시간(ms)이 이 값에 닿아야 양보하는 기준
 const sustainMs = 100;
-// 양보 대기 시간 대비 이어서 처리하는 시간의 배수
+// 양보 대기 시간의 이동 평균 대비 이어서 처리하는 시간의 배수
 const waitFactor = 2;
 // 이어서 처리하는 시간의 상한(ms)
 const maxLimitMs = 32;
@@ -14,7 +14,7 @@ const maxLimitMs = 32;
 const idleResetMs = 2;
 
 /**
- * 신호마다 pull 한 번으로 큐를 비우고 처리 시간이 budgetMs에 닿으면 양보하는 구독
+ * 신호마다 pull 한 번으로 큐를 비우고 처리 시간이 이어서 처리하는 시간에 닿으면 양보하는 구독
  * 직전 step의 건당 처리 시간으로 pull 건수를 정하는 방식
  * 큐가 sustainMs 이상 비지 않은 경우에만 양보
  * 반환값은 구독 해제 함수
@@ -74,7 +74,8 @@ export function subscribe(
 
   const resume = () => {
     timer = undefined;
-    // 양보 대기가 길수록 늘어나는 이어서 처리하는 시간
+    // 직전 평균과 이번 양보 대기의 반반 평균
+    // 대기가 길수록 늘어나는 이어서 처리하는 시간
     waitMs = (waitMs + Date.now() - yieldAt) / 2;
     limitMs = Math.min(maxLimitMs, Math.max(budgetMs, waitFactor * waitMs));
     spent = 0;
