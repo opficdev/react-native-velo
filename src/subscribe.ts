@@ -8,6 +8,10 @@ const budgetMs = 8;
 const sustainMs = 100;
 // 양보 대기 시간 대비 이어서 처리하는 시간의 배수
 const waitFactor = 2;
+// 이어서 처리하는 시간의 상한(ms)
+const maxLimitMs = 32;
+// 마지막 step 이후 이 시간(ms) 이상 쉬었을 때 적체가 끝난 것으로 보는 기준
+const idleResetMs = 2;
 
 /**
  * 신호마다 pull 한 번으로 큐를 비우고 처리 시간이 budgetMs에 닿으면 양보하는 구독
@@ -25,8 +29,16 @@ export function subscribe(
   let limitMs = budgetMs;
   let waitMs = 0;
   let yieldAt = 0;
+  let lastEnd = 0;
   let backlogSince: number | undefined;
   let perItemMs: number | undefined;
+
+  const reset = () => {
+    spent = 0;
+    limitMs = budgetMs;
+    waitMs = 0;
+    backlogSince = undefined;
+  };
 
   const step = () => {
     const start = Date.now();
@@ -45,14 +57,14 @@ export function subscribe(
         onBatch(result);
       }
     } finally {
-      const elapsed = Date.now() - start;
+      lastEnd = Date.now();
+      const elapsed = lastEnd - start;
       if (result.items.length > 0) {
         perItemMs = elapsed / result.items.length;
       }
       if (result.items.length < count) {
-        // 요청한 건수보다 적게 나오면 큐가 빈 것이므로 누적 시간 초기화
-        spent = 0;
-        backlogSince = undefined;
+        // 요청한 건수보다 적게 나오면 큐가 빈 것이므로 적체 종료
+        reset();
       } else {
         spent += elapsed;
         backlogSince ??= start;
@@ -62,9 +74,9 @@ export function subscribe(
 
   const resume = () => {
     timer = undefined;
-    // 양보 대기가 길수록 이어서 처리하는 시간을 늘림
+    // 양보 대기가 길수록 늘어나는 이어서 처리하는 시간
     waitMs = (waitMs + Date.now() - yieldAt) / 2;
-    limitMs = Math.max(budgetMs, waitFactor * waitMs);
+    limitMs = Math.min(maxLimitMs, Math.max(budgetMs, waitFactor * waitMs));
     spent = 0;
     step();
   };
@@ -74,6 +86,10 @@ export function subscribe(
     // 남은 항목은 resume의 pull 뒤 코어의 신호 재전송으로 처리
     if (!active || timer !== undefined) {
       return;
+    }
+    // 마지막 step 이후 쉬었다면 적체 종료
+    if (idleResetMs <= Date.now() - lastEnd) {
+      reset();
     }
     if (spent < limitMs) {
       step();
