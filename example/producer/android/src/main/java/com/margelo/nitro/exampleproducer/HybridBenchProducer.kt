@@ -11,6 +11,8 @@ import java.nio.ByteOrder
 @DoNotStrip
 class HybridBenchProducer : HybridBenchProducerSpec() {
     private var size = 1024
+    private var payload = BenchPayload.fixed(1024)
+    private val frames = FrameMonitor { thermalLevel(NitroModules.applicationContext) }
     private var perSecond = 1000
     private var durationMs = 10_000
     private var generator: BenchGenerator? = null
@@ -22,14 +24,29 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
         durationMs: Double,
     ) {
         this.size = size.toInt()
+        this.payload = BenchPayload.fixed(this.size)
         this.perSecond = perSecond.toInt()
         this.durationMs = durationMs.toInt()
     }
 
     @Synchronized
+    override fun configurePayload(
+        sizes: ArrayBuffer,
+        json: Boolean,
+    ) {
+        val bytes = sizes.getBuffer(false).order(ByteOrder.LITTLE_ENDIAN)
+        val view = bytes.asIntBuffer()
+        val table = IntArray(view.remaining())
+        view.get(table)
+        require(table.isNotEmpty()) { "sizes must not be empty" }
+        require(table.all { it in 18..16 * 1024 * 1024 }) { "each size must be between 18 and 16777216" }
+        payload = if (json) BenchPayload.json(table, size) else BenchPayload.filled(table, size)
+    }
+
+    @Synchronized
     override fun start(stream: HybridEventQueueSpec) {
         generator?.stop()
-        val next = BenchGenerator(size, perSecond, durationMs) { buffer -> stream.push(buffer) }
+        val next = BenchGenerator(payload, perSecond, durationMs) { buffer -> stream.push(buffer) }
         generator = next
         next.start()
     }
@@ -42,7 +59,7 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     @Synchronized
     override fun startCallback(onEvent: (data: ArrayBuffer) -> Unit) {
         generator?.stop()
-        val next = BenchGenerator(size, perSecond, durationMs, onEvent)
+        val next = BenchGenerator(payload, perSecond, durationMs, onEvent)
         generator = next
         next.start()
     }
@@ -124,6 +141,24 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
         return (pages * 4096L).toDouble()
     }
 
+    override fun startFrames() {
+        frames.start()
+    }
+
+    override fun stopFrames() {
+        frames.stop()
+    }
+
+    override fun readFrames(): FrameRecord {
+        val record = frames.read()
+        val buffer = ArrayBuffer.allocate(record.times.size * 8)
+        val view = buffer.getBuffer(false).order(ByteOrder.LITTLE_ENDIAN).asDoubleBuffer()
+        view.put(record.times)
+        return FrameRecord(buffer, thermalNames[record.thermalWorst], record.overflow, record.firstSkewMs)
+    }
+
+    override fun deviceInfo(): DeviceInfo = benchDeviceInfo(NitroModules.applicationContext)
+
     override fun appendResult(line: String) {
         val context = NitroModules.applicationContext ?: return
         // Release 앱의 내부 폴더는 adb로 읽을 수 없어 외부 파일 폴더 사용
@@ -132,6 +167,7 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     }
 
     override fun dispose() {
+        frames.stop()
         generator?.stop()
     }
 }

@@ -24,7 +24,7 @@ struct BenchWindow {
 // 전용 스레드 실행
 // 먼 예정 시각은 sleep 대기 뒤 마지막 200µs 이상 스핀 대기
 final class BenchGenerator {
-  private let size: Int
+  private let payload: BenchPayload
   private let perSecond: Int
   private let durationNs: UInt64
   private let done = DispatchSemaphore(value: 0)
@@ -40,12 +40,12 @@ final class BenchGenerator {
   private var finishedFlag = false
 
   init(
-    size: Int,
+    payload: BenchPayload,
     perSecond: Int,
     durationMs: Int,
     sink: @escaping (BenchBuffer) -> Void
   ) {
-    self.size = size
+    self.payload = payload
     self.perSecond = perSecond
     self.durationNs = UInt64(durationMs) * 1_000_000
     self.sink = sink
@@ -127,9 +127,9 @@ final class BenchGenerator {
       }
       let tEmit = benchNowNs()
       let buffer = makeBenchBuffer(
-        size: size,
+        payload: payload,
         tEmit: Double(tEmit),
-        seq: Double(index)
+        index: index
       )
       sink?(buffer)
       let after = benchNowNs()

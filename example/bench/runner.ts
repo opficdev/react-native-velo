@@ -2,8 +2,10 @@ import type { BenchProducer } from 'example-producer';
 import { createEventStream } from 'react-native-velo';
 import type { PullResult } from 'react-native-velo';
 import type { BenchPath, Scenario } from './scenarios';
+import type { Consumer } from './consumers/types';
+import type { Step } from './replay';
 import { scenarios, workNs } from './scenarios';
-import { quantile, slope, sortedCopy } from './stats';
+import { mulberry32, quantile, slope, sortedCopy } from './stats';
 
 // 02. 기준선 측정과 같은 구간
 const warmupMs = 2000;
@@ -13,32 +15,56 @@ const durationMs = warmupMs + measureMs;
 const drainLimitMs = 60000;
 const drainStallMs = 5000;
 const rounds = 3;
+// 경로 B에서 처리하지 못해 쌓인 이벤트의 한도
+// JNI 전역 참조 테이블(51200)과 Java 힙(약 192MB)이 먼저 차는 안드로이드의 앱 종료
+const backlogLimitEvents = 20000;
+const backlogLimitBytes = 64 * 1024 * 1024;
 
 export type Progress = (text: string) => void;
 
+// 소비자 패턴 측정이 runOnce에 붙이는 확장
+export interface RunExtension {
+  // 이벤트 크기 표와 JSON 페이로드 여부
+  sizes?: Int32Array;
+  json?: boolean;
+  // 이벤트와 묶음 처리를 맡는 소비자
+  consumer?: Consumer;
+  // 실행 시간(ms)
+  // 생략 시 예열과 측정 구간의 합
+  durationMs?: number;
+  // 경로 B의 처리 대기 한도 미적용
+  noGuard?: boolean;
+  // 대기 루프마다 호출하는 경과 시간과 처리 대기 건수 통지
+  onTick?: (info: { elapsedMs: number; pending: number }) => void;
+  // 취소 여부 확인
+  cancelled?: () => boolean;
+  // 프로브 시작
+  onStart?: (window: { runStart: number; from: number; to: number }) => void;
+  // 드레인이 끝난 직후의 프로브 종료
+  onStop?: () => void;
+  // 프로브 결과 필드와 step 기록을 받는 마무리
+  finish?: (
+    window: { from: number; to: number },
+    steps: Step[],
+    bytes: number[],
+    state: { incomplete: boolean; cancelled: boolean },
+  ) => Record<string, unknown>;
+}
+
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
-
-// 시드를 받는 난수 생성기
-function mulberry32(seed: number) {
-  let state = seed;
-  return () => {
-    state = (state + 0x6d2b79f5) | 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export async function runOnce(
   producer: BenchProducer,
   path: BenchPath,
   scenario: Scenario,
   round: number,
+  ext?: RunExtension,
 ) {
   const { size, rate } = scenario;
   const work = workNs(scenario);
-  const capacity = Math.ceil(((rate * durationMs) / 1000) * 1.1) + 1024;
+  const runMs = ext?.durationMs ?? durationMs;
+  const capacity = Math.ceil(((rate * runMs) / 1000) * 1.1) + 1024;
   const emitTimes = new Float64Array(capacity);
   const readyTimes = new Float64Array(capacity);
   let count = 0;
@@ -49,8 +75,16 @@ export async function runOnce(
   const stepMs: number[] = [];
   const stepItems: number[] = [];
   const lags: number[] = [];
+  const steps: Step[] = [];
+  const stepBytes: number[] = [];
 
-  producer.configure(size, rate, durationMs);
+  producer.configure(size, rate, runMs);
+  if (ext?.sizes) {
+    producer.configurePayload(
+      ext.sizes.buffer as ArrayBuffer,
+      ext.json ?? false,
+    );
+  }
   const startMem = producer.memoryBytes();
   let maxMem = startMem;
   const runStart = producer.nowNs();
@@ -60,9 +94,13 @@ export async function runOnce(
 
   const handle = (item: ArrayBuffer) => {
     const ready = producer.nowNs();
-    const emit = new DataView(item).getFloat64(0, true);
+    const view = new DataView(item);
+    const emit = view.getFloat64(0, true);
     received += 1;
-    if (item.byteLength !== size) {
+    const expected = ext?.sizes
+      ? ext.sizes[view.getFloat64(8, true) % ext.sizes.length]
+      : size;
+    if (item.byteLength !== expected) {
       sizeMismatch += 1;
     }
     if (emit < runStart) {
@@ -76,7 +114,9 @@ export async function runOnce(
       lastMemAt = ready;
       maxMem = Math.max(maxMem, producer.memoryBytes());
     }
-    if (0 < work) {
+    if (ext?.consumer) {
+      ext.consumer.onItem(item);
+    } else if (0 < work) {
       const until = ready + work;
       while (producer.nowNs() < until) {
         // 바쁜 대기
@@ -87,11 +127,23 @@ export async function runOnce(
   const onBatch = (batch: PullResult) => {
     const begin = producer.nowNs();
     dropped += batch.dropped;
+    let bytes = 0;
     for (const item of batch.items) {
       handle(item);
+      bytes += item.byteLength;
+    }
+    ext?.consumer?.onBatchEnd(false);
+    const end = producer.nowNs();
+    if (ext) {
+      steps.push({
+        begin: begin / 1e6,
+        end: end / 1e6,
+        items: batch.items.length,
+      });
+      stepBytes.push(bytes);
     }
     if (windowFrom <= begin && begin < windowTo) {
-      stepMs.push((producer.nowNs() - begin) / 1e6);
+      stepMs.push((end - begin) / 1e6);
       stepItems.push(batch.items.length);
     }
   };
@@ -112,6 +164,7 @@ export async function runOnce(
   };
   setTimeout(tick, 10);
 
+  ext?.onStart?.({ runStart, from: windowFrom, to: windowTo });
   let release: () => void;
   if (path === 'Q') {
     const stream = createEventStream();
@@ -122,37 +175,68 @@ export async function runOnce(
       disconnect();
     };
   } else {
-    producer.startCallback(handle);
+    producer.startCallback((item) => {
+      handle(item);
+      ext?.consumer?.onBatchEnd(true);
+    });
     release = () => producer.stopCallback();
   }
 
-  const limit = runStart + (durationMs + 30000) * 1e6;
-  while (!producer.finished() && producer.nowNs() < limit) {
-    await sleep(50);
-  }
-  const emittedTotal = producer.readStats(0, 1e18).emitted;
-  const finishAt = producer.nowNs();
-  let lastProgressAt = finishAt;
-  let lastReceived = received;
   let incomplete = false;
-  while (received + dropped < emittedTotal) {
-    await sleep(50);
-    const now = producer.nowNs();
-    if (received !== lastReceived) {
-      lastReceived = received;
-      lastProgressAt = now;
+  let cancelled = false;
+  let overloaded = false;
+  let drainMs: number;
+  try {
+    const limit = runStart + (runMs + 30000) * 1e6;
+    while (!producer.finished() && producer.nowNs() < limit) {
+      if (ext?.cancelled?.()) {
+        cancelled = true;
+        break;
+      }
+      // 예정대로 발행했다고 보고 계산한 처리 대기 건수
+      const elapsed = Math.min(runMs, (producer.nowNs() - runStart) / 1e6);
+      const pending = (rate * elapsed) / 1000 - received - dropped;
+      ext?.onTick?.({ elapsedMs: elapsed, pending });
+      if (
+        path === 'B' &&
+        !overloaded &&
+        !ext?.noGuard &&
+        (backlogLimitEvents < pending || backlogLimitBytes < pending * size)
+      ) {
+        overloaded = true;
+        producer.stopCallback();
+      }
+      await sleep(50);
     }
-    if (
-      drainStallMs * 1e6 < now - lastProgressAt ||
-      drainLimitMs * 1e6 < now - finishAt
-    ) {
-      incomplete = true;
-      break;
+    const emittedTotal = producer.readStats(0, 1e18).emitted;
+    const finishAt = producer.nowNs();
+    let lastProgressAt = finishAt;
+    let lastReceived = received;
+    while (!cancelled && received + dropped < emittedTotal) {
+      if (ext?.cancelled?.()) {
+        cancelled = true;
+        break;
+      }
+      await sleep(50);
+      const now = producer.nowNs();
+      if (received !== lastReceived) {
+        lastReceived = received;
+        lastProgressAt = now;
+      }
+      if (
+        drainStallMs * 1e6 < now - lastProgressAt ||
+        drainLimitMs * 1e6 < now - finishAt
+      ) {
+        incomplete = true;
+        break;
+      }
     }
+    drainMs = (producer.nowNs() - finishAt) / 1e6;
+  } finally {
+    ticking = false;
+    release();
+    ext?.onStop?.();
   }
-  const drainMs = (producer.nowNs() - finishAt) / 1e6;
-  ticking = false;
-  release();
 
   const native = producer.readStats(windowFrom, windowTo);
   const latency: number[] = [];
@@ -215,6 +299,12 @@ export async function runOnce(
     stepP99Ms: quantile(stepSorted, 0.99),
     stepMaxMs: stepSorted.length > 0 ? stepSorted[stepSorted.length - 1] : 0,
     stepItemsP50: quantile(itemsSorted, 0.5),
+    ...ext?.finish?.({ from: windowFrom, to: windowTo }, steps, stepBytes, {
+      incomplete,
+      cancelled,
+    }),
+    cancelled,
+    overloaded,
   };
   producer.appendResult(JSON.stringify(result));
   return result;

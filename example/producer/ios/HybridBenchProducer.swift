@@ -14,6 +14,8 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
   // 아래 값은 lock 안에서만 접근
   private let lock = NSLock()
   private var size = 1024
+  private var payload = BenchPayload.fixed(size: 1024)
+  private let frames = FrameMonitor()
   private var perSecond = 1000
   private var durationMs = 10_000
   private var generator: BenchGenerator?
@@ -26,8 +28,32 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     lock.lock()
     defer { lock.unlock() }
     self.size = Int(size)
+    self.payload = BenchPayload.fixed(size: self.size)
     self.perSecond = Int(perSecond)
     self.durationMs = Int(durationMs)
+  }
+
+  func configurePayload(
+    sizes: BenchBuffer,
+    json: Bool
+  ) throws {
+    let count = sizes.size / 4
+    guard 0 < count else {
+      throw RuntimeError.error(withMessage: "sizes must not be empty")
+    }
+    let source = UnsafeRawPointer(sizes.data)
+    let table = (0..<count).map { Int(source.loadUnaligned(fromByteOffset: $0 * 4, as: Int32.self)) }
+    guard let smallest = table.min(), let largest = table.max(), 18 <= smallest, largest <= 16 * 1024 * 1024 else {
+      throw RuntimeError.error(withMessage: "each size must be between 18 and 16777216")
+    }
+    lock.lock()
+    defer { lock.unlock() }
+    payload = json ? BenchPayload.json(sizes: table, fixedSize: size) : BenchPayload(
+      sizes: table,
+      fixedSize: size,
+      template: [],
+      cuts: []
+    )
   }
 
   func start(stream: (any HybridEventQueueSpec)) throws {
@@ -36,7 +62,7 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     generator?.stop()
     // 이 파일에 버퍼 타입 이름이 없으면 push가 보이지 않아 타입 명시
     let next = BenchGenerator(
-      size: size,
+      payload: payload,
       perSecond: perSecond,
       durationMs: durationMs
     ) { (buffer: BenchBuffer) in
@@ -58,7 +84,7 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     defer { lock.unlock() }
     generator?.stop()
     let next = BenchGenerator(
-      size: size,
+      payload: payload,
       perSecond: perSecond,
       durationMs: durationMs,
       sink: onEvent
@@ -162,6 +188,28 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     return status == KERN_SUCCESS ? Double(info.phys_footprint) : 0
   }
 
+  func startFrames() throws {
+    frames.start()
+  }
+
+  func stopFrames() throws {
+    frames.stop()
+  }
+
+  func readFrames() throws -> FrameRecord {
+    let record = frames.read()
+    return FrameRecord(
+      times: makeDoubleBuffer(record.times),
+      thermalWorst: record.thermalWorst,
+      overflow: record.overflow,
+      firstSkewMs: record.firstSkewMs
+    )
+  }
+
+  func deviceInfo() throws -> DeviceInfo {
+    benchDeviceInfo()
+  }
+
   func appendResult(line: String) throws {
     let directory = try FileManager.default.url(
       for: .documentDirectory,
@@ -178,5 +226,9 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     } else {
       try data.write(to: url)
     }
+  }
+
+  deinit {
+    frames.stop()
   }
 }
