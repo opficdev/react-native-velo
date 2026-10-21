@@ -61,7 +61,8 @@ const differs = (a: Sample, b: Sample) =>
     sampleRatio * Math.min(a.ms, b.ms) <= Math.max(a.ms, b.ms));
 
 // 두 표본의 기울기를 marginMs로 확정
-// 두 표본의 건당 평균을 넘지 않도록 제한하고 0 이하면 확정하지 않음
+// 두 표본의 건당 평균 이하로 제한한 기울기
+// 0 이하인 기울기는 확정 제외
 function fit(pace: Pace, a: Sample, b: Sample) {
   const slope = Math.min(
     (b.ms - a.ms) / (b.items - a.items),
@@ -100,7 +101,7 @@ function decide(pace: Pace, limitMs: number) {
   const average = last.ms / last.items;
   const count =
     average <= 0 ? pullCount : clampCount(Math.floor(limitMs / average));
-  // 기울기를 구하지 못한 채 가득 찬 step이 이어지면 두 번째 표본을 얻기 위해 늘림
+  // 기울기를 구하지 못한 채 가득 찬 step이 이어질 때 두 번째 표본을 얻기 위한 건수 증가
   if (!pace.growing) {
     return count;
   }
