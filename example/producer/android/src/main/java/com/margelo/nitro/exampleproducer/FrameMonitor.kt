@@ -78,7 +78,7 @@ class FrameMonitor(
 
     private fun record(frameTimeNanos: Long) {
         // 열 상태 조회는 바인더 호출이라 1초에 한 번만 수행
-        val readThermal = 1_000_000_000L <= frameTimeNanos - lastThermalAt
+        val readThermal = synchronized(lock) { 1_000_000_000L <= frameTimeNanos - lastThermalAt }
         val state = if (readThermal) thermal() else 0
         synchronized(lock) {
             if (count == 0) {
