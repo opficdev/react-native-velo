@@ -26,3 +26,41 @@ func makeBenchBuffer(
   memset(base + 16, 0x5A, size - 16)
   return buffer
 }
+
+// 크기 표와 JSON 템플릿을 따르는 소유 버퍼
+// 앞 16바이트에 발행 시각과 순번을 담음
+func makeBenchBuffer(
+  payload: BenchPayload,
+  tEmit: Double,
+  index: UInt64
+) -> BenchBuffer {
+  let size = payload.size(at: index)
+  let buffer = BenchBuffer.allocate(size: size)
+  let base = UnsafeMutableRawPointer(buffer.data)
+  base.storeBytes(of: tEmit, as: Double.self)
+  base.storeBytes(of: Double(index), toByteOffset: 8, as: Double.self)
+  let body = base + 16
+  let length = size - 16
+  if payload.template.isEmpty {
+    memset(body, 0x5A, length)
+    return buffer
+  }
+  let cut = payload.cut(at: index)
+  payload.template.withUnsafeBytes { source in
+    body.copyMemory(from: source.baseAddress!, byteCount: cut)
+  }
+  body.storeBytes(of: 0x5D, toByteOffset: cut, as: UInt8.self)
+  memset(body + cut + 1, 0x20, length - cut - 1)
+  return buffer
+}
+
+// Double 배열을 담은 소유 버퍼
+func makeDoubleBuffer(_ values: [Double]) -> BenchBuffer {
+  let buffer = BenchBuffer.allocate(size: values.count * 8)
+  if !values.isEmpty {
+    values.withUnsafeBytes { source in
+      UnsafeMutableRawPointer(buffer.data).copyMemory(from: source.baseAddress!, byteCount: source.count)
+    }
+  }
+  return buffer
+}

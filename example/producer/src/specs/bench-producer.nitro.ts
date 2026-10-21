@@ -18,6 +18,34 @@ export interface BenchStats {
 }
 
 /**
+ * 기기와 실행 환경 정보
+ */
+export interface DeviceInfo {
+  model: string;
+  osVersion: string;
+  // 화면 최대 주사율(Hz)
+  maxRefreshHz: number;
+  // nominal, fair, serious, critical, unknown 중 하나
+  thermalState: string;
+  lowPowerMode: boolean;
+  isSimulator: boolean;
+}
+
+/**
+ * 프레임 기록 한 번의 결과
+ */
+export interface FrameRecord {
+  // 메인 스레드 프레임 시각(ns)의 little endian Float64 배열
+  times: ArrayBuffer;
+  // 기록 중 가장 나빴던 열 상태
+  thermalWorst: string;
+  // 기록 용량을 넘겨 일부를 버렸는지 여부
+  overflow: boolean;
+  // 첫 프레임 콜백 시점의 시계와 프레임 시각 차이(ms)
+  firstSkewMs: number;
+}
+
+/**
  * 일정한 속도로 이벤트를 만들어 큐 경로나 콜백 경로로 보내는 측정용 생산자
  * 페이로드 앞 16바이트는 발행 시각(ns)과 순번이며 둘 다 little endian Float64
  */
@@ -27,6 +55,10 @@ export interface BenchProducer extends HybridObject<{
 }> {
   // 다음 실행의 이벤트 크기(바이트), 초당 발행 수, 실행 시간(ms)
   configure(size: number, perSecond: number, durationMs: number): void;
+  // 다음 실행의 이벤트 크기 표(little endian Int32 배열)와 JSON 채우기 여부
+  // 순번을 표 길이로 나눈 나머지 위치의 크기를 사용하고 표는 비어 있지 않으며 값은 18 이상
+  // configure를 호출하면 고정 크기와 0x5A 채우기로 복귀
+  configurePayload(sizes: ArrayBuffer, json: boolean): void;
   // 큐 경로 시작과 받은 큐에 대한 push
   start(stream: EventQueue): void;
   // 큐 경로 중단과 큐 참조 해제
@@ -47,6 +79,14 @@ export interface BenchProducer extends HybridObject<{
   nowNs(): number;
   // 프로세스 메모리 사용량(바이트)
   memoryBytes(): number;
+  // 메인 스레드 프레임 시각 기록 시작과 이전 기록 폐기
+  startFrames(): void;
+  // 프레임 시각 기록 중단
+  stopFrames(): void;
+  // 기록한 프레임 시각의 소유 버퍼와 부가 정보
+  readFrames(): FrameRecord;
+  // 기기와 실행 환경 정보
+  deviceInfo(): DeviceInfo;
   // 결과 한 줄을 앱 파일에 추가
   appendResult(line: string): void;
 }

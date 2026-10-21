@@ -10,7 +10,7 @@ import java.util.concurrent.locks.LockSupport
 // 전용 스레드 실행
 // 먼 예정 시각은 parkNanos 대기 뒤 마지막 150µs 스핀 대기
 class BenchGenerator(
-    private val size: Int,
+    private val payload: BenchPayload,
     private val perSecond: Int,
     durationMs: Int,
     private var sink: ((ArrayBuffer) -> Unit)?,
@@ -74,7 +74,6 @@ class BenchGenerator(
 
     private fun run() {
         val interval = 1_000_000_000L / perSecond
-        val filler = ByteArray(size) { 0x5A }
         val begin = System.nanoTime()
         var index = 0L
         while (!cancelled && emitted < capacity) {
@@ -92,12 +91,13 @@ class BenchGenerator(
                 }
             }
             val tEmit = System.nanoTime()
+            val size = payload.size(index)
             val buffer = ArrayBuffer.allocate(size)
             val bytes = buffer.getBuffer(false).order(ByteOrder.LITTLE_ENDIAN)
             bytes.putDouble(0, tEmit.toDouble())
             bytes.putDouble(8, index.toDouble())
             bytes.position(16)
-            bytes.put(filler, 16, size - 16)
+            payload.fill(bytes, index, size)
             sink?.invoke(buffer)
             val after = System.nanoTime()
             starts[emitted] = tEmit
