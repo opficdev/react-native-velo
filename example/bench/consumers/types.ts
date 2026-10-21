@@ -22,6 +22,6 @@ export interface Consumer {
   // 이벤트 한 건의 처리
   onItem(item: ArrayBuffer): void;
   // 묶음의 끝 처리
-  // 경로 B는 이벤트마다 single이 true
+  // 경로 B에서 이벤트마다 single이 true인 경우
   onBatchEnd(single: boolean): void;
 }

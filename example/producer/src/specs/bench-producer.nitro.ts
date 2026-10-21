@@ -56,7 +56,9 @@ export interface BenchProducer extends HybridObject<{
   // 다음 실행의 이벤트 크기(바이트), 초당 발행 수, 실행 시간(ms)
   configure(size: number, perSecond: number, durationMs: number): void;
   // 다음 실행의 이벤트 크기 표(little endian Int32 배열)와 JSON 채우기 여부
-  // 순번을 표 길이로 나눈 나머지 위치의 크기를 사용하고 표는 비어 있지 않으며 값은 18 이상
+  // 순번을 표 길이로 나눈 나머지 위치의 크기 사용
+  // 표는 비어 있지 않은 상태
+  // 값은 18 이상인 상태
   // configure를 호출하면 고정 크기와 0x5A 채우기로 복귀
   configurePayload(sizes: ArrayBuffer, json: boolean): void;
   // 큐 경로 시작과 받은 큐에 대한 push

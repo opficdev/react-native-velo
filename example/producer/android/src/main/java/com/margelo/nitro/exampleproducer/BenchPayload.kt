@@ -15,7 +15,7 @@ class BenchPayload private constructor(
     fun size(index: Long): Int = if (sizes.isEmpty()) fixedSize else sizes[(index % sizes.size).toInt()]
 
     // 16바이트 뒤 본문을 채우는 함수
-    // 버퍼의 position은 16
+    // 버퍼의 position이 16인 상태
     fun fill(
         bytes: ByteBuffer,
         index: Long,

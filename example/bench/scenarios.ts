@@ -49,9 +49,11 @@ export type Distribution = 'sensor' | 'audio' | 'socket';
 export interface ConsumerCase {
   pattern: Pattern;
   distribution: Distribution;
-  // 묶음마다 쓰는 고정 비용(ms)이며 fixedCost만 0보다 큼
+  // 묶음마다 쓰는 고정 비용(ms)
+  // fixedCost만 0보다 큰 값
   batchMs: number;
-  // 2초마다 JS 스레드를 이만큼(ms) 막는 블록 부하이며 0이면 없음
+  // 2초마다 JS 스레드를 막는 블록 부하(ms)
+  // 0은 부하가 없는 경우
   busyMs: number;
   // 이 조합에만 적용하는 부하 배수
   loads?: number[];
@@ -100,7 +102,8 @@ export const consumerCases: ConsumerCase[] = [
   ),
 ];
 
-// 보정 속도를 찾는 이름이며 블록 부하는 같은 조합의 보정 속도를 씀
+// 보정 속도를 찾는 이름
+// 블록 부하 조합이 공유하는 같은 조합의 보정 속도
 export function rateId(item: ConsumerCase) {
   return item.pattern === 'fixedCost'
     ? `${item.pattern}-${item.batchMs}-${item.distribution}`

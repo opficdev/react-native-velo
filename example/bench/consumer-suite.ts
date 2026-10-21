@@ -58,8 +58,8 @@ function hash(text: string) {
   return value;
 }
 
-// 열 상태가 nominal이 되기를 기다림
-// 한도 안에 돌아오지 않으면 false
+// 열 상태가 nominal이 될 때까지의 대기
+// 한도 안에 회복하지 못한 경우의 false 반환
 async function coolDown(producer: BenchProducer, onProgress: Progress) {
   const until = Date.now() + coolWaitMs;
   while (producer.deviceInfo().thermalState !== 'nominal') {
@@ -227,17 +227,19 @@ async function runCase(
 }
 
 // 보정 상한
-// 안드로이드는 처리하지 못한 버퍼가 JNI 전역 참조 테이블(51200)에 쌓여 한도를 넘으면 앱이 종료됨
+// 안드로이드에서 처리하지 못한 버퍼가 JNI 전역 참조 테이블(51200)에 쌓여 한도를 넘는 경우의 앱 종료
 // 1.2배 부하에서 10초 동안 쌓이는 양과 1초 분량의 적체가 이 한도 안에 들도록 정한 값
-// iOS는 JNI 한도가 없으므로 상한을 높여 소비자가 실제로 포화되는 속도를 찾음
+// iOS의 JNI 한도 부재
+// 소비자가 실제로 포화되는 속도를 찾기 위해 높인 상한
 const android = Platform.OS === 'android';
 const rateCap = android ? 8000 : 20000;
-// 작은 이벤트는 JS ArrayBuffer가 가벼워 GC가 늦게 돌고 JNI 전역 참조가 먼저 차므로 안드로이드의 상한을 낮춤
+// 작은 이벤트에서 JS ArrayBuffer가 가벼워 GC가 늦게 돌고 JNI 전역 참조가 먼저 차는 문제
+// 그 문제로 낮춘 안드로이드의 상한
 const sensorRateCap = android ? 3000 : 20000;
 const byteCap = android ? 40e6 : 150e6;
 
 // 소비자와 분포 조합마다 경로 B가 밀리지 않고 따라가는 최대 발행 속도 보정
-// 속도를 올려 가며 따라가는 마지막 속도와 따라가지 못한 첫 속도 사이를 좁힘
+// 속도를 올려 가며 따라가는 마지막 속도와 따라가지 못한 첫 속도 사이를 좁히는 탐색
 export async function calibrate(context: Context, all = consumerCases) {
   const { producer, onProgress } = context;
   // 블록 부하 조합은 같은 조합의 보정 속도를 쓰므로 중복 제외
@@ -264,7 +266,7 @@ export async function calibrate(context: Context, all = consumerCases) {
         rate,
       );
       await sleep(1000);
-      // iOS는 콜백이 JS 큐를 채우면 타이머가 큐가 빌 때까지 밀려 드레인 시간이 0으로 나옴
+      // iOS에서 콜백이 JS 큐를 채우면 타이머가 큐가 빌 때까지 밀려 드레인 시간이 0으로 나오는 현상
       // 측정 구간의 처리량이 발행 속도를 따라가는지도 함께 확인
       return (
         result.drainMs <= 1000 &&
@@ -462,7 +464,8 @@ const stabilityRate = 16000;
 const stabilityMs = 30000;
 
 // 느린 소비자에 과부하를 걸고 경로마다 메모리와 처리 대기 건수를 시간순으로 기록
-// 경로 B의 처리 대기 한도를 풀며 Android는 앱이 종료되기 전까지의 기록이 결과임
+// 경로 B의 처리 대기 한도 해제
+// Android에서 앱이 종료되기 전까지의 기록이 결과
 export async function runStability(context: Context, paths: BenchPath[]) {
   const { producer, onProgress } = context;
   const session = Date.now();

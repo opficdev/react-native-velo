@@ -48,7 +48,7 @@ struct BenchPayload {
       ends.append(template.count)
       id += 1
     }
-    let cuts = (sizes.isEmpty ? [fixedSize] : sizes).map { size -> Int in
+    let cuts = (sizes.isEmpty ? [fixedSize] : sizes).map { size in
       // ends[k] + 1 <= size - 16 을 만족하는 가장 큰 k 탐색
       var low = 0
       var high = ends.count - 1

@@ -1,7 +1,8 @@
 import { quantile, sortedCopy } from './stats';
 
 // src/subscribe.ts의 상수와 같은 값
-// 라이브러리 상수가 export되지 않아 복제하며 값이 바뀌면 함께 고침
+// 라이브러리 상수가 export되지 않아 둔 복제본
+// 값이 바뀔 때 함께 수정할 대상
 const pullCount = 64;
 const budgetMs = 8;
 const sustainMs = 100;
@@ -17,8 +18,8 @@ export interface Step {
 }
 
 // step 기록으로 subscribe의 내부 상태를 다시 계산한 결과
-// 단순화: 앞 step 직후에 신호가 오고 양보하면 그 간격이 대기 시간이 됨
-// 기록되지 않는 pull 시간은 건당 처리 시간에 들어가지 않음
+// 단순화: 앞 step 직후에 신호가 오고 양보하면 그 간격을 대기 시간으로 보는 가정
+// 기록되지 않아 건당 처리 시간에서 빠지는 pull 시간
 export function replaySubscribe(steps: Step[]) {
   let spent = 0;
   let limitMs = budgetMs;

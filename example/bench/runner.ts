@@ -16,7 +16,7 @@ const drainLimitMs = 60000;
 const drainStallMs = 5000;
 const rounds = 3;
 // 경로 B에서 처리하지 못해 쌓인 이벤트의 한도
-// 안드로이드는 JNI 전역 참조 테이블(51200)과 Java 힙(약 192MB)이 먼저 차면 앱이 종료됨
+// JNI 전역 참조 테이블(51200)과 Java 힙(약 192MB)이 먼저 차는 안드로이드의 앱 종료
 const backlogLimitEvents = 20000;
 const backlogLimitBytes = 64 * 1024 * 1024;
 
@@ -29,9 +29,10 @@ export interface RunExtension {
   json?: boolean;
   // 이벤트와 묶음 처리를 맡는 소비자
   consumer?: Consumer;
-  // 실행 시간(ms)이며 생략하면 예열과 측정 구간의 합
+  // 실행 시간(ms)
+  // 생략 시 예열과 측정 구간의 합
   durationMs?: number;
-  // 경로 B의 처리 대기 한도를 쓰지 않음
+  // 경로 B의 처리 대기 한도 미적용
   noGuard?: boolean;
   // 대기 루프마다 호출하는 경과 시간과 처리 대기 건수 통지
   onTick?: (info: { elapsedMs: number; pending: number }) => void;

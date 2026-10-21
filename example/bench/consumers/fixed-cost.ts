@@ -3,7 +3,7 @@ import { itemNs } from '../scenarios';
 import type { Consumer } from './types';
 
 // 묶음마다 고정 시간과 이벤트마다 일정 시간을 바쁜 대기로 쓰는 합성 소비자
-// 경로 B의 단건 전달에는 묶음 고정 시간이 없음
+// 경로 B의 단건 전달에서 제외하는 묶음 고정 시간
 export function createFixedCost(
   producer: BenchProducer,
   batchMs: number,

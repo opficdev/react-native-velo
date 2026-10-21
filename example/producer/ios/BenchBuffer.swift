@@ -28,7 +28,7 @@ func makeBenchBuffer(
 }
 
 // 크기 표와 JSON 템플릿을 따르는 소유 버퍼
-// 앞 16바이트에 발행 시각과 순번을 담음
+// 앞 16바이트에 발행 시각과 순번을 담는 구조
 func makeBenchBuffer(
   payload: BenchPayload,
   tEmit: Double,

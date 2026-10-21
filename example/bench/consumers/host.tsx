@@ -13,7 +13,7 @@ interface Props {
 }
 
 // 상태 소비자의 상태와 화면을 가진 컴포넌트
-// 렌더 시작과 커밋 시각을 프로브에 알림
+// 렌더 시작과 커밋 시각의 프로브 통지
 export function ConsumerHost({ probe, onReady }: Props) {
   probe.onRender();
   const [state, dispatch] = useReducer(reduce, initial);

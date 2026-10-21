@@ -19,7 +19,7 @@ export class CommitProbe {
     this.dispatchAt = new Float64Array(capacity + 2);
   }
 
-  // dispatch 직전에 호출하며 순번을 돌려줌
+  // dispatch 직전에 호출하는 순번 발급
   onDispatch() {
     this.version += 1;
     if (this.version < this.dispatchAt.length) {
