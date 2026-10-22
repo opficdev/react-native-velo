@@ -1,6 +1,6 @@
 {
   "name": "react-native-velo",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "React Native에서 네이티브가 JS로 자주 보내는 이벤트 스트림의 전달을 개선하는 라이브러리",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
@@ -10,13 +10,15 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "codegen": "nitrogen --logLevel=\"debug\"",
-    "build": "npm run typecheck && bob build"
+    "build": "npm run typecheck && bob build",
+    "prepack": "npm run codegen && npm run build"
   },
   "files": [
     "src",
     "lib",
     "nitrogen",
     "cpp",
+    "!cpp/.clang-format",
     "nitro.json",
     "android/build.gradle",
     "android/fix-prefab.gradle",
@@ -24,6 +26,7 @@
     "android/CMakeLists.txt",
     "android/src",
     "ios/**/*.h",
+    "ios/**/*.hpp",
     "ios/**/*.m",
     "ios/**/*.mm",
     "ios/**/*.cpp",
@@ -53,8 +56,11 @@
   },
   "peerDependencies": {
     "react": "*",
-    "react-native": "*",
-    "react-native-nitro-modules": "*"
+    "react-native": "^0.88.0",
+    "react-native-nitro-modules": "^0.37.1"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "react-native-builder-bob": {
     "source": "src",
