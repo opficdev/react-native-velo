@@ -9,6 +9,137 @@ const sustainMs = 100;
 const waitFactor = 2;
 const maxLimitMs = 32;
 const idleResetMs = 2;
+// 두 표본의 건수 차이가 이 값 이상이면 기울기를 구하는 기준
+const sampleGap = 16;
+// 두 표본의 처리 시간 비가 이 값 이상이면 기울기를 구하는 기준
+const sampleRatio = 2;
+// 측정 시간이 예측의 이 배수를 넘거나 역수에 못 미치면 기울기를 버리는 기준
+const missRatio = 2;
+// 늘려서 두 번째 표본을 얻거나 다시 확인할 때의 건수 배수
+const growFactor = 4;
+// 가득 찬 step이 이 횟수만큼 이어지면 건수를 늘려 다시 확인하는 주기
+const recheckSteps = 64;
+// 늘린 step의 예상 시간이 이 값(ms)을 넘으면 늘리지 않는 상한
+const recheckLimitMs = 128;
+// 예측과 측정이 모두 이 값(ms) 미만이면 판정하지 않는 기준
+const resolutionMs = 2;
+
+// 한 step의 건수와 처리 시간(ms)
+interface Sample {
+  items: number;
+  ms: number;
+}
+
+// 구독 안에서만 유지하는 건수 추정 상태
+// 처리 시간을 fixedMs + marginMs × 건수로 보는 모델
+interface Pace {
+  last: Sample | undefined;
+  requested: number;
+  marginMs: number | undefined;
+  fixedMs: number;
+  growing: boolean;
+  checking: boolean;
+  checkIn: number;
+}
+
+const newPace = (): Pace => ({
+  last: undefined,
+  requested: 0,
+  marginMs: undefined,
+  fixedMs: 0,
+  growing: false,
+  checking: false,
+  checkIn: recheckSteps,
+});
+
+const clampCount = (count: number) => Math.min(pullCount, Math.max(1, count));
+
+// 건수가 다르면서 건수나 시간이 충분히 다른 두 표본
+const differs = (a: Sample, b: Sample) =>
+  a.items !== b.items &&
+  (sampleGap <= Math.abs(a.items - b.items) ||
+    sampleRatio * Math.min(a.ms, b.ms) <= Math.max(a.ms, b.ms));
+
+// 두 표본의 기울기를 marginMs로 확정
+// 두 표본의 건당 평균 이하로 제한한 기울기
+// 0 이하인 기울기는 확정 제외
+function fit(pace: Pace, a: Sample, b: Sample) {
+  const slope = Math.min(
+    (b.ms - a.ms) / (b.items - a.items),
+    a.ms / a.items,
+    b.ms / b.items,
+  );
+  if (slope <= 0) {
+    return;
+  }
+  pace.marginMs = slope;
+  pace.fixedMs = b.ms - slope * b.items;
+  pace.growing = false;
+  pace.checkIn = recheckSteps;
+}
+
+// 다음 pull의 건수
+// 기울기가 있으면 남은 시간과 무관하게 limitMs 안에 들어가는 건수
+function decide(pace: Pace, limitMs: number) {
+  pace.checking = false;
+  const { last, requested, marginMs } = pace;
+  if (marginMs !== undefined) {
+    const count = clampCount(Math.floor(limitMs / marginMs));
+    if (pace.checkIn <= 0 && count < pullCount) {
+      const grown = Math.min(pullCount, count * growFactor);
+      if (pace.fixedMs + marginMs * grown <= recheckLimitMs) {
+        pace.checking = true;
+        return grown;
+      }
+    }
+    return count;
+  }
+  if (last === undefined) {
+    return pullCount;
+  }
+  // 기울기를 구하기 전에는 고정 비용이 없다고 보는 평균
+  const average = last.ms / last.items;
+  const count =
+    average <= 0 ? pullCount : clampCount(Math.floor(limitMs / average));
+  // 기울기를 구하지 못한 채 가득 찬 step이 이어질 때 두 번째 표본을 얻기 위한 건수 증가
+  if (!pace.growing) {
+    return count;
+  }
+  const grown = Math.min(pullCount, requested * growFactor);
+  return recheckLimitMs < grown * average ? count : grown;
+}
+
+// 끝까지 처리한 step의 표본 반영
+function record(pace: Pace, count: number, items: number, ms: number) {
+  const cur = { items, ms };
+  const { last, marginMs } = pace;
+  pace.requested = count;
+  if (count <= items && count < pullCount) {
+    pace.checkIn -= 1;
+  }
+  if (marginMs !== undefined) {
+    const predicted = pace.fixedMs + marginMs * items;
+    const judged = resolutionMs <= Math.max(predicted, ms);
+    if (judged && (missRatio * predicted < ms || missRatio * ms < predicted)) {
+      pace.marginMs = undefined;
+      pace.checkIn = recheckSteps;
+    } else if (pace.checking && last !== undefined && differs(last, cur)) {
+      fit(pace, last, cur);
+    }
+  } else {
+    if (last !== undefined && differs(last, cur)) {
+      fit(pace, last, cur);
+    }
+    // 기울기를 구하지 못했고 요청한 건수가 모두 나온 step은 적체가 있는 것
+    pace.growing =
+      pace.marginMs === undefined && count <= items && count < pullCount;
+  }
+  if (pace.checking) {
+    pace.checking = false;
+    pace.checkIn = recheckSteps;
+  }
+  pace.last = cur;
+}
 
 // onBatch 한 번의 기록(ms)
 export interface Step {
@@ -19,14 +150,15 @@ export interface Step {
 
 // step 기록으로 subscribe의 내부 상태를 다시 계산한 결과
 // 단순화: 앞 step 직후에 신호가 오고 양보하면 그 간격을 대기 시간으로 보는 가정
-// 기록되지 않아 건당 처리 시간에서 빠지는 pull 시간
+// 기록되지 않아 표본의 처리 시간에서 빠지는 pull 시간
+// 기록되지 않아 표본에서 제외되지 않는 onBatch 예외 step
 export function replaySubscribe(steps: Step[]) {
   let spent = 0;
   let limitMs = budgetMs;
   let waitMs = 0;
   let lastEnd = -Infinity;
   let backlogSince: number | undefined;
-  let perItemMs: number | undefined;
+  const pace = newPace();
   let mismatch = 0;
   const reset = () => {
     spent = 0;
@@ -53,19 +185,13 @@ export function replaySubscribe(steps: Step[]) {
         spent = 0;
       }
     }
-    const count =
-      perItemMs === undefined
-        ? pullCount
-        : Math.min(
-            pullCount,
-            Math.max(1, Math.floor((limitMs - spent) / perItemMs)),
-          );
+    const count = decide(pace, limitMs);
     if (count < step.items) {
       mismatch += 1;
     }
     const elapsed = step.end - step.begin;
     if (0 < step.items) {
-      perItemMs = elapsed / step.items;
+      record(pace, count, step.items, elapsed);
     }
     lastEnd = step.end;
     if (step.items < count) {

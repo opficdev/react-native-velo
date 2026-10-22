@@ -107,6 +107,21 @@ function App() {
         onPress={() =>
           run(() =>
             runConsumerSuite(context(), {
+              cases: consumerCases,
+              loads: [0.9],
+              paths: ['Q'],
+              rounds: 3,
+            }),
+          )
+        }
+      >
+        <Text>소비자 측정 줄임</Text>
+      </Pressable>
+      <Pressable
+        style={styles.button}
+        onPress={() =>
+          run(() =>
+            runConsumerSuite(context(), {
               cases: consumerCases.filter(
                 (item) =>
                   item.pattern === 'setState' && item.distribution === 'sensor',
