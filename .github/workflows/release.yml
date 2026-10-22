@@ -67,10 +67,11 @@ jobs:
       - name: Check published version
         id: published
         env:
-          MISE_AUTO_INSTALL: 0
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if mise exec -- npm view "react-native-velo@$VERSION" version > /dev/null 2>&1; then
+          if gh release view "$VERSION" --json assets --jq '.assets[].name' 2> /dev/null | grep -qxF "react-native-velo-$VERSION.tgz"; then
             echo "published=true" >> "$GITHUB_OUTPUT"
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
@@ -114,11 +115,6 @@ jobs:
         env:
           MISE_AUTO_INSTALL: 0
         run: make pack-check
-
-      - name: Publish dry run
-        env:
-          MISE_AUTO_INSTALL: 0
-        run: mise exec -- npm publish "$(ls /tmp/velo-pack/*.tgz)" --dry-run
 
       - name: Upload package
         uses: actions/upload-artifact@v4
@@ -238,27 +234,19 @@ jobs:
     if: needs.verify.outputs.published != 'true' && !inputs.dry_run
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: npm
+    environment: release
     permissions:
-      contents: read
-      id-token: write
+      contents: write
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Set up Node
-        uses: jdx/mise-action@v4
-        with:
-          install: true
-          cache: false
-          install_args: node
-
       - name: Download package
         uses: actions/download-artifact@v4
         with:
           name: package
           path: ${{ runner.temp }}/pack
 
-      - name: Publish
+      - name: Create release
         env:
-          MISE_AUTO_INSTALL: 0
-        run: mise exec -- npm publish "$(ls "$RUNNER_TEMP"/pack/*.tgz)" --provenance --access public
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: gh release create "$VERSION" "$RUNNER_TEMP"/pack/*.tgz --verify-tag --title "$VERSION" --generate-notes
