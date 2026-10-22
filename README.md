@@ -8,7 +8,7 @@
 
 ## 프로젝트 개요
 
-네 영역으로 나뉘며 이벤트는 네이티브 생산자의 `push`에서 시작해 `BoundedQueue`와 Nitro 하이브리드 객체를 거쳐 JS 구독자의 `onBatch`로 전달
+이벤트는 네이티브 생산자의 `push`에서 시작해 `BoundedQueue`와 Nitro 하이브리드 객체를 거쳐 JS 구독자의 `onBatch`로 전달
 
 | 영역 | 담당 | 위치 |
 |---|---|---|
@@ -64,9 +64,6 @@ npm install https://github.com/opficdev/react-native-velo/releases/download/<버
 	- `react`: `*`
 	- `react-native`: `^0.88.0`
 	- `react-native-nitro-modules`: `^0.37.1`
-- iOS는 설치 뒤 `ios/` 폴더에서 `pod install` 실행
-- 배포물에 Nitro 생성 코드(`nitrogen/`)와 빌드 결과(`lib/`) 포함, 사용 앱의 코드 생성 실행 불필요
-- 생산자 모듈을 직접 만드는 경우 모듈이 라이브러리에 의존하도록 설정 필요 ([사용 흐름](#사용-흐름) 참고)
 - 한계
 	- npm 레지스트리에 올라가 있지 않아 `npm install react-native-velo`로 설치 불가
 	- `^0.1.0` 같은 버전 범위로 자동 업데이트 불가, 버전마다 URL 변경
@@ -74,6 +71,9 @@ npm install https://github.com/opficdev/react-native-velo/releases/download/<버
 ## 사용 흐름
 
 첫 사용은 생산자 선언, 네이티브 `push`, JS 연결의 세 단계
+
+- iOS는 설치 뒤 `ios/` 폴더에서 `pod install` 실행
+- 생산자 모듈을 직접 만드는 경우 모듈이 라이브러리에 의존하도록 설정 필요
 
 ### 1. 생산자 선언
 
@@ -249,6 +249,7 @@ const disconnect = stream.connect(producer);
 
 - 주의: 시뮬레이터와 에뮬레이터에서 인공 핸들러로만 측정해 실제 앱의 JS 부하와 UI 프레임 영향은 확인 못함
 - 주의: 현재 `develop`의 `pull` 건수 결정은 1~3의 측정 이후 변경, B와의 비교는 재측정 안 함
+- 주의: B와 Q를 같은 프로세스에서 연속 실행해 메모리 비교는 대략적인 값
 - 주의: `subscribe`의 내부 상수는 장치에서 정하지 않음
 
 ## 기술 스택
@@ -268,6 +269,7 @@ const disconnect = stream.connect(producer);
 - Android는 라이브러리 기본값(`EventStream_minSdkVersion`)이 23이고 예제 앱의 `minSdkVersion`이 24
 - 주의: visionOS 1.0은 podspec에 선언만 있고 visionOS와 Android SDK 23 빌드는 CI에서 미확인
 - 네이티브 생산자는 iOS에서 Swift, Android에서 Kotlin으로 구현
+- 배포물에 Nitro 생성 코드(`nitrogen/`)와 빌드 결과(`lib/`) 포함, 사용 앱의 코드 생성 실행 불필요
 
 ## 한계
 
