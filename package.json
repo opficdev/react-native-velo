@@ -59,9 +59,6 @@
     "react-native": "^0.88.0",
     "react-native-nitro-modules": "^0.37.1"
   },
-  "publishConfig": {
-    "access": "public"
-  },
   "react-native-builder-bob": {
     "source": "src",
     "output": "lib",
