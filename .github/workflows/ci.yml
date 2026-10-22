@@ -6,6 +6,7 @@ on:
     branches:
       - develop
       - main
+  workflow_call:
 
 permissions:
   contents: read
@@ -49,6 +50,39 @@ jobs:
         env:
           MISE_AUTO_INSTALL: 0
         run: make lint-ts
+
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+          install_args: node
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json', 'example/package-lock.json') }}
+
+      - name: Install dependencies
+        run: mise exec -- npm ci
+
+      - name: Pack
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make pack
+
+      - name: Check package contents
+        env:
+          MISE_AUTO_INSTALL: 0
+        run: make pack-check
 
   swift:
     name: Swift lint

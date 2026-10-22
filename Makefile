@@ -3,13 +3,32 @@ CONFIGURATION ?= Debug
 DESTINATION ?= generic/platform=iOS Simulator
 DERIVED_DATA_PATH ?= /tmp/velo-derived-data
 ANDROID_ARCHITECTURES ?= arm64-v8a
+PACK_DIR ?= /tmp/velo-pack
+TGZ ?= $(firstword $(wildcard $(PACK_DIR)/*.tgz))
+PACK_REQUIRED := \
+	package/lib/commonjs/index.js \
+	package/lib/module/index.js \
+	package/lib/typescript/src/index.d.ts \
+	package/nitrogen/generated/ios/EventStream+autolinking.rb \
+	package/nitrogen/generated/android/EventStream+autolinking.gradle \
+	package/nitrogen/generated/android/EventStream+autolinking.cmake \
+	package/ios/EventQueueCoreSwift.hpp \
+	package/ios/HybridEventQueue.swift \
+	package/cpp/nitro/EventQueueCore.hpp \
+	package/android/build.gradle \
+	package/android/fix-prefab.gradle \
+	package/android/CMakeLists.txt \
+	package/src/specs/event-queue.nitro.ts \
+	package/EventStream.podspec \
+	package/nitro.json
+PACK_FORBIDDEN := '^package/android/(build|\.cxx)/|tsbuildinfo$$|^package/cpp/\.clang-format$$'
 
 TS_FILES := "**/*.{ts,tsx,js,cjs,mjs}"
 KOTLIN_FILES := "android/src/**/*.kt" "example/android/app/src/**/*.kt"
 PRODUCER_KOTLIN_FILES := "example/producer/android/src/**/*.kt"
 CPP_FILES := $(wildcard cpp/core/*.hpp cpp/core/*.cpp cpp/nitro/*.hpp cpp/nitro/*.cpp)
 
-.PHONY: setup hooks codegen codegen-producer pods typecheck lint lint-ts lint-swift lint-kotlin lint-cpp lint-producer-swift lint-producer-kotlin build-ios build-android
+.PHONY: setup hooks codegen codegen-producer pods typecheck lint lint-ts lint-swift lint-kotlin lint-cpp lint-producer-swift lint-producer-kotlin build-ios build-android pack pack-check install-pack
 
 setup: hooks
 	$(MISE) npm ci
@@ -69,3 +88,22 @@ build-ios:
 build-android:
 	cd example/android && $(MISE) ./gradlew assemble$(CONFIGURATION) \
 		-PreactNativeArchitectures=$(ANDROID_ARCHITECTURES)
+
+pack:
+	rm -rf "$(PACK_DIR)"
+	mkdir -p "$(PACK_DIR)"
+	$(MISE) npm pack --pack-destination "$(PACK_DIR)"
+
+pack-check:
+	@test -n "$(TGZ)" || { echo "TGZ 없음: make pack을 먼저 실행"; exit 1; }
+	@list=$$(tar -tzf "$(TGZ)") && \
+	for path in $(PACK_REQUIRED); do \
+		echo "$$list" | grep -qxF "$$path" || { echo "배포물에 없음: $$path"; exit 1; }; \
+	done && \
+	if echo "$$list" | grep -E $(PACK_FORBIDDEN); then \
+		echo "배포물에 들어가면 안 되는 파일 있음"; exit 1; \
+	fi
+
+install-pack:
+	@test -n "$(TGZ)" || { echo "TGZ 없음: make pack을 먼저 실행"; exit 1; }
+	cd example && $(MISE) npm install --no-save "$(TGZ)"
