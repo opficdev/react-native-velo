@@ -5,11 +5,12 @@
 - [Releases](https://github.com/opficdev/react-native-velo/releases)에서 설치할 버전을 골라 `<버전>`에 입력
 
 ```bash
-npm install https://github.com/opficdev/react-native-velo/releases/download/<버전>/react-native-velo-<버전>.tgz react-native-nitro-modules
+npm install https://github.com/opficdev/react-native-velo/releases/download/<버전>/react-native-velo-<버전>.tgz react-native-nitro-modules@^0.37.1
 ```
 
 - `react-native-nitro-modules`는 peer dependency라 함께 설치
 - `peerDependencies` 범위
+	- `react`: `*`
 	- `react-native`: `^0.88.0`
 	- `react-native-nitro-modules`: `^0.37.1`
 - 한계
