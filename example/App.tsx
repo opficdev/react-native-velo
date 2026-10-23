@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { createBenchProducer } from 'example-producer';
 import {
   calibrate,
@@ -117,126 +118,133 @@ function App() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <Text>EventStream 측정</Text>
-      <Text testID="progress">{text}</Text>
-      <Pressable
-        style={styles.button}
-        onPress={() => run(() => runSuite(producer, setText))}
-      >
-        <Text>전체 측정</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() => run(() => runSweep(producer, setText))}
-      >
-        <Text>pull 비용</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() =>
-          run(() =>
-            runSuite(producer, setText, {
-              path: 'Q',
-              scenario: scenarios[0],
-            }),
-          )
-        }
-      >
-        <Text>큐 경로 1회</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() => run(() => calibrate(context()))}
-      >
-        <Text>보정</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() =>
-          run(() =>
-            runConsumerSuite(context(), {
-              cases: consumerCases,
-              loads,
-              paths: ['B', 'Q'],
-              rounds: 3,
-            }),
-          )
-        }
-      >
-        <Text>소비자 측정</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() =>
-          run(() =>
-            runConsumerSuite(context(), {
-              cases: consumerCases,
-              loads: [0.9],
-              paths: ['Q'],
-              rounds: 3,
-            }),
-          )
-        }
-      >
-        <Text>소비자 측정 줄임</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() =>
-          run(() =>
-            runConsumerSuite(context(), {
-              cases: consumerCases.filter(
-                (item) =>
-                  item.pattern === 'setState' && item.distribution === 'sensor',
-              ),
-              loads: [0.9, 1.2],
-              paths: ['B', 'Q'],
-              rounds: 3,
-            }),
-          )
-        }
-      >
-        <Text>입력 지연</Text>
-      </Pressable>
-      <Pressable
-        testID="realistic"
-        style={styles.button}
-        onPress={() => runRealistic(realisticCases)}
-      >
-        <Text>현실 측정</Text>
-      </Pressable>
-      <Pressable
-        testID="realistic-overload"
-        style={styles.button}
-        onPress={() => runRealistic(realisticOverloadCases)}
-      >
-        <Text>현실 과부하 측정</Text>
-      </Pressable>
-      <Pressable
-        style={styles.button}
-        onPress={() => run(() => runStability(context(), ['Q', 'B']))}
-      >
-        <Text>안정성</Text>
-      </Pressable>
-      <Pressable
-        testID="input-target"
-        style={styles.target}
-        onPressIn={(event) => input.record(event.nativeEvent.timestamp)}
-      >
-        <Text>입력 대상</Text>
-      </Pressable>
-      <View style={styles.slot}>
-        {mounted ? (
-          <ConsumerHost probe={mounted.probe} onReady={mounted.onReady} />
-        ) : null}
-      </View>
-    </View>
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.container}>
+          <Text>EventStream 측정</Text>
+          <Text testID="progress">{text}</Text>
+          <Pressable
+            style={styles.button}
+            onPress={() => run(() => runSuite(producer, setText))}
+          >
+            <Text>전체 측정</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() => run(() => runSweep(producer, setText))}
+          >
+            <Text>pull 비용</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              run(() =>
+                runSuite(producer, setText, {
+                  path: 'Q',
+                  scenario: scenarios[0],
+                }),
+              )
+            }
+          >
+            <Text>큐 경로 1회</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() => run(() => calibrate(context()))}
+          >
+            <Text>보정</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              run(() =>
+                runConsumerSuite(context(), {
+                  cases: consumerCases,
+                  loads,
+                  paths: ['B', 'Q'],
+                  rounds: 3,
+                }),
+              )
+            }
+          >
+            <Text>소비자 측정</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              run(() =>
+                runConsumerSuite(context(), {
+                  cases: consumerCases,
+                  loads: [0.9],
+                  paths: ['Q'],
+                  rounds: 3,
+                }),
+              )
+            }
+          >
+            <Text>소비자 측정 줄임</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() =>
+              run(() =>
+                runConsumerSuite(context(), {
+                  cases: consumerCases.filter(
+                    (item) =>
+                      item.pattern === 'setState' &&
+                      item.distribution === 'sensor',
+                  ),
+                  loads: [0.9, 1.2],
+                  paths: ['B', 'Q'],
+                  rounds: 3,
+                }),
+              )
+            }
+          >
+            <Text>입력 지연</Text>
+          </Pressable>
+          <Pressable
+            testID="realistic"
+            style={styles.button}
+            onPress={() => runRealistic(realisticCases)}
+          >
+            <Text>현실 측정</Text>
+          </Pressable>
+          <Pressable
+            testID="realistic-overload"
+            style={styles.button}
+            onPress={() => runRealistic(realisticOverloadCases)}
+          >
+            <Text>현실 과부하 측정</Text>
+          </Pressable>
+          <Pressable
+            style={styles.button}
+            onPress={() => run(() => runStability(context(), ['Q', 'B']))}
+          >
+            <Text>안정성</Text>
+          </Pressable>
+          <Pressable
+            testID="input-target"
+            style={styles.target}
+            onPressIn={(event) => input.record(event.nativeEvent.timestamp)}
+          >
+            <Text>입력 대상</Text>
+          </Pressable>
+          <View style={styles.slot}>
+            {mounted ? (
+              <ConsumerHost probe={mounted.probe} onReady={mounted.onReady} />
+            ) : null}
+          </View>
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // 상태 표시줄과 홈 표시기를 피하는 안전 영역
+  safe: { flex: 1 },
+  container: { flex: 1, alignItems: 'center', paddingTop: 8 },
   button: { padding: 12, margin: 4, borderWidth: 1 },
   slot: { height: 220 },
   target: { padding: 12, margin: 4, borderWidth: 1, borderStyle: 'dashed' },
