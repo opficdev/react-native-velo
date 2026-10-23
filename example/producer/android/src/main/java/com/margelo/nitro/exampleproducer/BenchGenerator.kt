@@ -13,6 +13,7 @@ class BenchGenerator(
     private val payload: BenchPayload,
     private val perSecond: Int,
     durationMs: Int,
+    private val limit: CallbackLimit? = null,
     private var sink: ((ArrayBuffer) -> Unit)?,
 ) {
     private val durationNs = durationMs * 1_000_000L
@@ -25,6 +26,15 @@ class BenchGenerator(
     var isFinished = false
         private set
 
+    // JS가 알린 받은 이벤트 수
+    @Volatile
+    private var acked = 0
+
+    // 처리 대기 한도로 발행을 멈췄는지 여부
+    @Volatile
+    var limitReached = false
+        private set
+
     // 아래 값의 쓰기 스레드는 생성기 스레드
     // 아래 값의 읽기 시점은 stop 이후
     private val capacity = perSecond * (durationMs / 1000 + 2)
@@ -32,6 +42,10 @@ class BenchGenerator(
     private val costs = LongArray(capacity)
     private val lates = BooleanArray(capacity)
     private var emitted = 0
+
+    // 발행한 이벤트 바이트의 누적 합
+    // 인덱스 n은 앞 n건의 합
+    private val cumulativeBytes = LongArray(capacity + 1)
 
     fun start() {
         Thread {
@@ -46,6 +60,11 @@ class BenchGenerator(
         cancelled = true
         done.await()
         sink = null
+    }
+
+    // JS가 받은 이벤트 수 갱신
+    fun ack(count: Int) {
+        acked = count
     }
 
     // [fromNs, toNs) 구간에 발행한 이벤트의 통계
@@ -71,6 +90,20 @@ class BenchGenerator(
         val late: Int,
         val sortedCosts: List<Long>,
     )
+
+    // 콜백 경로의 처리 대기 한도
+    class CallbackLimit(
+        val maxEvents: Int,
+        val maxBytes: Long,
+    )
+
+    // 발행 수가 JS가 받은 수보다 한도 넘게 앞섰는지 여부
+    private fun overLimit(): Boolean {
+        val current = limit ?: return false
+        val received = minOf(acked, emitted)
+        return current.maxEvents < emitted - received ||
+            current.maxBytes < cumulativeBytes[emitted] - cumulativeBytes[received]
+    }
 
     private fun run() {
         val interval = 1_000_000_000L / perSecond
@@ -103,8 +136,13 @@ class BenchGenerator(
             starts[emitted] = tEmit
             costs[emitted] = after - tEmit
             lates[emitted] = 1_000_000 <= tEmit - scheduled
+            cumulativeBytes[emitted + 1] = cumulativeBytes[emitted] + size
             emitted += 1
             index += 1
+            if (overLimit()) {
+                limitReached = true
+                break
+            }
         }
         isFinished = true
         done.countDown()

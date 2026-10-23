@@ -175,6 +175,11 @@ export async function runOnce(
       disconnect();
     };
   } else {
+    // JS 스레드가 막혀 아래 대기 루프의 한도 검사가 돌지 못하는 동안의 네이티브 한도
+    producer.setCallbackLimit(
+      ext?.noGuard ? 0 : backlogLimitEvents,
+      ext?.noGuard ? 0 : backlogLimitBytes,
+    );
     producer.startCallback((item) => {
       handle(item);
       ext?.consumer?.onBatchEnd(true);
@@ -197,6 +202,9 @@ export async function runOnce(
       const elapsed = Math.min(runMs, (producer.nowNs() - runStart) / 1e6);
       const pending = (rate * elapsed) / 1000 - received - dropped;
       ext?.onTick?.({ elapsedMs: elapsed, pending });
+      if (path === 'B') {
+        producer.ackReceived(received);
+      }
       if (
         path === 'B' &&
         !overloaded &&
@@ -207,6 +215,9 @@ export async function runOnce(
         producer.stopCallback();
       }
       await sleep(50);
+    }
+    if (path === 'B' && producer.callbackLimitReached()) {
+      overloaded = true;
     }
     const emittedTotal = producer.readStats(0, 1e18).emitted;
     const finishAt = producer.nowNs();

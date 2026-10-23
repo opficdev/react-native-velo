@@ -1,27 +1,27 @@
 # react-native-velo
 
-> React Native에서 네이티브가 JS로 자주 보내는 이벤트 스트림의 전달을 개선하는 라이브러리
+> 네이티브 이벤트가 몰릴 때 JS가 감당할 수 있는 만큼만 가져가게 하는 React Native 라이브러리
 >
-> 네이티브 생산자가 넣은 이벤트를 C++ `BoundedQueue`에 모아 JS가 처리할 수 있는 만큼 묶어서 가져가는 구조
+> 네이티브 producer가 넣은 이벤트를 C++ `BoundedQueue`에 모아 JS가 처리할 수 있는 만큼 묶어서 가져가는 구조
 
 [![CI](https://github.com/opficdev/react-native-velo/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/opficdev/react-native-velo/actions/workflows/ci.yml)
 
 ## 프로젝트 개요
 
-이벤트는 네이티브 생산자의 `push`에서 시작해 `BoundedQueue`와 Nitro 하이브리드 객체를 거쳐 JS 구독자의 `onBatch`로 전달
+이벤트는 네이티브 producer의 `push`에서 시작해 `BoundedQueue`와 Nitro 하이브리드 객체를 거쳐 JS subscriber의 `onBatch`로 전달
 
 | 영역 | 담당 | 위치 |
 |---|---|---|
-| 네이티브 생산자 | 받은 스트림에 직접 `push` | 사용하는 앱의 모듈 (예제: `example/producer/`) |
+| 네이티브 producer | 받은 스트림에 직접 `push` | 사용하는 앱의 모듈 (예제: `example/producer/`) |
 | C++ 공통 코어 | `BoundedQueue`의 건수와 바이트 제한, 신호 대기 판정 | `cpp/core/` |
 | 연결 클래스 | 고정값(1024건, 16 MiB, `dropOldest`), 신호 경로, `Batch`를 `PullResult`로 변환 | `cpp/nitro/EventQueueCore` |
 | Nitro 하이브리드 객체 | `EventQueue`를 Swift와 Kotlin으로 구현하고 둘 다 `EventQueueCore`를 호출 | `ios/`, `android/` |
-| JS 구독자 | `createEventStream`, `subscribe`의 `pull` 건수 결정과 양보, `connect` | `src/` |
+| JS subscriber | `createEventStream`, `subscribe`의 `pull` 건수 결정과 양보, `connect` | `src/` |
 
 ```mermaid
 flowchart LR
   subgraph Native["네이티브"]
-    P["생산자 (Swift, Kotlin)"]
+    P["producer (Swift, Kotlin)"]
   end
   subgraph Core["C++ 공통 코어 (cpp/core)"]
     Q["BoundedQueue<br/>1024건, 16 MiB, dropOldest"]
@@ -44,12 +44,9 @@ flowchart LR
 
 ## 주요 기능
 
-- JS 스레드를 거치지 않는 네이티브 생산자의 스트림 직접 `push`
-- 소유 버퍼는 무복사, 빌린 버퍼는 `push`를 부른 스레드에서 복사
-- 큐가 가득 차면 오래된 항목부터 폐기, 폐기 건수는 `PullResult.dropped`로 전달
-- 신호 한 번에 `pull` 한 번을 부르고 적체가 이어지면 `setTimeout(fn, 0)`으로 양보
-- 스트림당 생산자 하나와 구독자 하나만 허용, 두 번째 호출은 `Error` 발생
-- `dispose` 뒤의 `push`는 오류 없이 무시
+- 신호 한 번에 `pull` 한 번으로 JS가 처리할 수 있는 만큼만 가져가고 적체가 이어지면 `setTimeout(fn, 0)`으로 양보
+- 건수와 바이트 상한(1024건, 16 MiB)을 둔 큐
+  - 가득 차면 오래된 이벤트부터 폐기하고 폐기 건수는 `PullResult.dropped`로 전달
 
 ## 설치
 
@@ -64,18 +61,15 @@ npm install https://github.com/opficdev/react-native-velo/releases/download/<버
 	- `react`: `*`
 	- `react-native`: `^0.88.0`
 	- `react-native-nitro-modules`: `^0.37.1`
-- 한계
-	- npm 레지스트리에 올라가 있지 않아 `npm install react-native-velo`로 설치 불가
-	- `^0.1.0` 같은 버전 범위로 자동 업데이트 불가, 버전마다 URL 변경
 
 ## 사용 흐름
 
-첫 사용은 생산자 선언, 네이티브 `push`, JS 연결의 세 단계
+첫 사용은 producer 선언, 네이티브 `push`, JS 연결의 세 단계
 
 - iOS는 설치 뒤 `ios/` 폴더에서 `pod install` 실행
-- 생산자 모듈을 직접 만드는 경우 모듈이 라이브러리에 의존하도록 설정 필요
+- producer 모듈을 직접 만드는 경우 모듈이 라이브러리에 의존하도록 설정 필요
 
-### 1. 생산자 선언
+### 1. producer 선언
 
 `EventQueue`를 받는 `start`와 `stop`을 가진 Nitro 모듈 선언
 
@@ -119,13 +113,13 @@ final class HybridExampleProducer: HybridExampleProducerSpec {
 }
 ```
 
-- Android 생산자는 Kotlin으로 같은 `start`와 `stop`을 구현하며 예제는 [`HybridExampleProducer.kt`](example/producer/android/src/main/java/com/margelo/nitro/exampleproducer/HybridExampleProducer.kt) 참고
+- Android producer는 Kotlin으로 같은 `start`와 `stop`을 구현하며 예제는 [`HybridExampleProducer.kt`](example/producer/android/src/main/java/com/margelo/nitro/exampleproducer/HybridExampleProducer.kt) 참고
 - 주의: Swift에서 `EventStream`을 가져오는 파일은 `ArrayBuffer` 직접 사용 불가, `example/producer/ios/CounterBuffer.swift`의 별칭 사용
 - 주의: 컴파일러 버전마다 거부하는 표기가 달라 이 별칭 사용, 원인은 확인 못함
 
 ### 3. JS 연결
 
-`createEventStream`으로 만든 스트림에 구독자와 생산자 연결
+`createEventStream`으로 만든 스트림에 subscriber와 producer 연결
 
 ```ts
 // example/bench/runner.ts 발췌
@@ -137,118 +131,116 @@ const disconnect = stream.connect(producer);
 
 - `onBatch`는 `PullResult`(`items`, `dropped`)를 받는 함수, `producer`는 1단계에서 선언한 모듈의 하이브리드 객체
 - `subscribe`와 `connect`는 해제 함수를 반환, 호출 순서 제한 없음
-- 생산자 모듈이 라이브러리에 의존하도록 설정 필요
+- producer 모듈이 라이브러리에 의존하도록 설정 필요
 	- iOS는 podspec에 `s.dependency 'EventStream'` 필요
 	- Android는 `find_package(react-native-velo REQUIRED CONFIG)`와 `react-native-velo::EventStream` 링크와 Gradle의 `project(":react-native-velo")` 의존 필요
 - 전체 흐름은 [`example/`](example)과 [`example/producer/`](example/producer)에서 확인 가능
 
 ## 핵심 성과
 
-1~3은 라이브러리를 쓰지 않은 Nitro 콜백 경로(B)와 이 라이브러리의 큐 경로(Q)를 같은 앱 실행 안에서 번갈아 측정한 결과이고 4는 큐 경로의 빌드 간 비교
+네이티브 producer가 보내는 이벤트를 JS가 따라가지 못하거나 JS 스레드가 오래 막힐 때를, 라이브러리를 쓰지 않은 Nitro 콜백 경로(B)와 이 라이브러리의 큐 경로(Q)로 비교한 결과
 
-- `onBatch` 핸들러의 부하는 fast가 추가 작업 없음, slow가 이벤트당 발행 간격의 50%, overload가 120%만큼 JS 스레드 점유
+- 두 경로를 같은 앱 실행 안에서 번갈아 측정, 표의 값은 3회 중앙값이며 각 칸은 B / Q 순서
+- `*`는 B와 Q의 3회 범위가 겹쳐 차이로 보지 않는 값
+- 센서: 가속도계와 자이로스코프의 샘플 하나(128B), 200/s는 Android가 권한 없이 허용하는 상한
+- 오디오 청크: 48kHz 32비트 스테레오 PCM을 20ms 단위로 자른 조각(7,680B), 50/s
+- 서버 메시지: 채팅, 알림, 시세처럼 서버가 실시간으로 보내는 JSON 메시지(크기가 64B에서 수십 KB까지 섞여 평균 약 1.5KB), 5,000/s는 메시지가 한꺼번에 몰리는 경우
+- 카메라: 카메라 영상 한 장(720p YUV420은 1,382,400B), 30/s는 30fps
+- 핸들러: 가져온 이벤트를 처리하는 앱 코드
+- Batch: 큐에서 한 번에 가져온 이벤트 묶음
+- 양보: 처리 시간 한도에 닿으면 다른 JS 작업이 실행되도록 스레드를 비우는 동작
+- 핸들러 오버: 핸들러가 이벤트 하나를 처리하는 시간을 발행 간격으로 나눈 값, 1을 넘으면 처리가 이벤트를 따라가지 못함
+- JS 막힘: 핸들러와 무관한 작업이 JS 스레드를 막는 시간
 - 루프 지연: 10ms 간격 JS 타이머가 예정보다 늦게 실행된 시간으로, JS 타이머 밀림의 지표
-- ready: 이벤트 발행 시각부터 `onBatch`에서 처리가 시작되는 시각까지의 시간
-- p99: 99번째 백분위수
-- 표의 값은 3회 중앙값이며 각 칸은 B / Q 순서
+- 이벤트 지연: 이벤트 발행 시각부터 핸들러에서 처리가 시작되는 시각까지의 시간
 
-### 1. 처리가 못 따라갈 때 JS 타이머 밀림 감소
+### 1. 핸들러가 이벤트를 따라가지 못할 때 JS 타이머 밀림 감소
 
-> **문제**: 네이티브가 JS의 처리 속도보다 빠르게 이벤트를 보내면 Nitro 콜백 경로에서 JS 타이머가 수 초에서 십수 초 지연
+> **문제**: 핸들러가 이벤트 하나를 발행 간격보다 오래 처리하면 Nitro 콜백 경로에서 JS 스레드가 계속 점유되어 JS 타이머가 수 초에서 십수 초 지연
 >
-> **해결**: 네이티브 생산자가 C++ `BoundedQueue`에 직접 `push`하고 JS는 처리 시간 한도 안에서만 Batch를 가져가며 한도에 닿으면 양보
+> **해결**: JS는 처리 시간 한도 안에서만 Batch를 가져가고 한도에 닿으면 양보
 >
-> **성과**: overload에서 JS 타이머 밀림이 iOS 64KB는 12,008ms에서 22.0ms로, Android 64KB는 2,334ms에서 52.2ms로 감소
-
-| 플랫폼 | 크기, 발행 속도 (overload) | JS 타이머 밀림: 루프 지연 p99 (ms) B / Q |
-|---|---|---|
-| iOS | 1KB, 5,000/s | 12,064 / 22.8 |
-| iOS | 64KB, 500/s | 12,008 / 22.0 |
-| iOS | 1MB, 50/s | 11,996 / 18.3 |
-| Android | 1KB, 5,000/s | 4,464 / 32.7 |
-| Android | 64KB, 500/s | 2,334 / 52.2 |
-| Android | 1MB, 50/s | 1,970 / 27.2 |
-
-### 2. 이벤트 지연과 메모리 증가를 큐 한도 안으로 제한
-
-> **문제**: Nitro 콜백 경로는 처리하지 못한 이벤트가 쌓이는 동안 지연과 메모리가 계속 늘어남
+> **성과**: 핸들러 오버 1.2에서 루프 지연 상위 1% 감소
 >
-> **해결**: `BoundedQueue`에 건수와 바이트 상한을 두고 가득 차면 오래된 항목부터 폐기하고 폐기 건수를 `PullResult.dropped`로 전달
+> - iOS: 11,996~12,100ms에서 14~110ms로
+> - Android: 1,096~3,675ms에서 57~246ms로
+
+| 이벤트 | 플랫폼 | 루프 지연 상위 1% (ms) B / Q | 이벤트 지연 상위 1% (ms) B / Q | 처리량 (건/초) B / Q | Q 폐기 (%) |
+|---|---|---|---|---|---|
+| 센서 128B, 200/s | iOS | 12,004 / 14 | 1,997 / 6,076 | 166 / 124 | 0 |
+| 센서 128B, 200/s | Android | 2,090 / 113 | 2,337 / 5,882 | 164 / 127 | 0 |
+| 서버 메시지 평균 약 1.5KB, 5,000/s | iOS | 12,100 / 23 | 2,093 / 307 | 4,128 / 3,032 | 37 |
+| 서버 메시지 평균 약 1.5KB, 5,000/s | Android | 3,675 / 57 | 4,600 / 391 | 3,065 / 2,452 | 50 |
+| 카메라 720p 1,382,400B, 30/s | iOS | 12,047 / 30 | 1,994 / 441 | 25 / 25* | 13 |
+| 카메라 720p 1,382,400B, 30/s | Android | 1,096 / 115 | 1,114 / 563 | 9.2 / 19 | 32 |
+
+- Q의 이점은 JS 타이머를 살리는 것이고 이벤트 지연과 처리량은 조합에 따라 갈림
+	- 빈도가 높거나 이벤트가 큰 조합은 Q가 일부를 폐기하고 이벤트 지연도 감소
+	- 센서 200/s와 오디오 청크처럼 빈도가 낮은 조합은 쌓인 양이 큐 상한에 못 미쳐 폐기 없이 이벤트 지연이 늘고 처리량이 저하
+- 주의: 낮은 빈도에서 Q의 이벤트 지연이 길어지는 원인은 양보한 시간만큼 핸들러가 덜 도는 것으로 추정하며 확인 못함
+
+### 2. JS가 오래 막혀도 이벤트 지연과 메모리를 큐 한도 안으로 제한
+
+> **문제**: JS 스레드가 막힌 동안 쌓인 이벤트를 Nitro 콜백 경로는 막힘이 풀린 뒤 모두 처리해야 해서 지연과 메모리가 막힌 시간만큼 증가
 >
-> **성과**: overload에서 이벤트가 처리되기까지의 ready p99가 iOS 1KB는 2,058ms에서 289ms로, Android 1KB는 4,737ms에서 481ms로 감소했고 메모리는 모든 시나리오에서 시작값 대비 15MB 이내
-
-| 플랫폼 | 크기, 발행 속도 (overload) | ready p99 (ms) B / Q | 처리량 (건/초) B / Q | Q 폐기 건수 |
-|---|---|---|---|---|
-| iOS | 1KB, 5,000/s | 2,058 / 289 | 4,140 / 3,152 | 17,271 |
-| iOS | 64KB, 500/s | 2,001 / 869 | 416 / 283 | 1,904 |
-| iOS | 1MB, 50/s | 1,988 / 368 | 42 / 40 | 84 |
-| Android | 1KB, 5,000/s | 4,737 / 481 | 3,453 / 2,431 | 24,758 |
-| Android | 64KB, 500/s | 2,658 / 893 | 399 / 275 | 2,040 |
-| Android | 1MB, 50/s | 2,193 / 491 | 41 / 30 | 184 |
-
-- 같은 구간에서 B의 메모리는 1MB overload 기준 iOS 약 15MB, Android 약 60MB 증가
-- 주의: overload에서 Q의 처리량이 B보다 낮음, 처리하지 못한 이벤트는 오래된 것부터 폐기
-- 주의: 처리량 감소의 원인은 양보 비용으로 추정하며 확인 못함
-- 주의: 상한 1024건과 16 MiB는 측정으로 정한 값이 아니라 초기 고정값, 다른 상한과의 비교 안 함
-
-### 3. 처리에 여유가 있을 때 추가 비용 없음
-
-> **문제**: `BoundedQueue`와 신호 경로를 거치면 처리에 여유 있는 경우 지연이나 처리량 악화 가능
+> **해결**: `BoundedQueue`에 건수와 바이트 상한(1024건, 16 MiB)을 두고 가득 차면 오래된 이벤트부터 폐기하며 폐기 건수를 `PullResult.dropped`로 전달
 >
-> **해결**: 신호 한 번에 `pull` 한 번으로 가져가고 양보는 적체가 이어질 때만 동작
+> **성과**: 5초 막힘에서 이벤트 지연 중앙값 감소
 >
-> **성과**: fast와 slow 시나리오에서 처리량이 B와 동일하고 대부분의 시나리오에서 ready p99와 루프 지연 p99도 차이 없음
+> - 서버 메시지 5,000/s: iOS 3,121ms에서 0.03ms로, Android 3,135ms에서 0.71ms로
+> - 카메라 720p 30/s: iOS 4,174ms에서 0.49ms로, Android 4,207ms에서 25ms로
+> - iOS 메모리 증가: 서버 메시지 5,000/s는 32MB에서 0MB로, 카메라 720p는 46MB에서 0MB로
 
-| 플랫폼 | 크기, 발행 속도, 핸들러 | 처리량 B / Q | ready p99 (ms) B / Q | 루프 지연 p99 (ms) B / Q |
-|---|---|---|---|---|
-| iOS | 1KB, 20,000/s, fast | 20,000 / 20,000 | 0.04 / 0.05 | 7.6 / 7.6 |
-| iOS | 64KB, 2,000/s, fast | 2,000 / 2,000 | 0.09 / 0.11 | 7.6 / 7.7 |
-| iOS | 1MB, 200/s, fast | 200 / 200 | 0.38 / 0.45 | 7.6 / 7.6 |
-| Android | 1KB, 20,000/s, fast | 19,996 / 20,004 | 5.4 / 6.2 | 20.1 / 19.5 |
-| Android | 64KB, 2,000/s, fast | 2,000 / 2,000 | 2.5 / 9.8 | 21.6 / 32.3 |
-| Android | 1MB, 200/s, fast | 200 / 200 | 4.4 / 5.5 | 19.2 / 19.1 |
+| 이벤트 | 플랫폼 | 이벤트 지연 중앙값 (ms) B / Q | 메모리 증가 (MB) B / Q | Q 폐기 (%) | B 한도 도달 |
+|---|---|---|---|---|---|
+| 센서 128B, 200/s | iOS | 1,971 / 1,973* | 0.48 / 1.1* | 0 | 0/3 |
+| 센서 128B, 200/s | Android | 1,992 / 1,993* | 1.2 / 1.0* | 0 | 0/3 |
+| 서버 메시지 평균 약 1.5KB, 5,000/s | iOS | 3,121 / 0.03 | 32 / 0.00 | 56 | 3/3 |
+| 서버 메시지 평균 약 1.5KB, 5,000/s | Android | 3,135 / 0.71 | 1.6 / 8.1* | 56 | 3/3 |
+| 카메라 720p 1,382,400B, 30/s | iOS | 4,174 / 0.49 | 46 / 0.00 | 52 | 3/3 |
+| 카메라 720p 1,382,400B, 30/s | Android | 4,207 / 25 | 30 / 31* | 50 | 3/3 |
 
-- 주의: Android 64KB 2,000/s fast에서는 Q의 ready p99와 루프 지연 p99가 B보다 높음
+- 막힌 동안 쌓이는 양이 큐 상한을 넘는 조합(초당 1,000건 이상의 센서와 서버 메시지, 카메라)에서만 차이, 센서 200/s처럼 상한 아래의 조합은 B와 동일
+- 표에 없는 센서 1,000/s와 서버 메시지 1,000/s, 카메라 VGA(460,800B)도 같은 경향이며 이벤트 지연 중앙값이 iOS는 2,575ms 이하에서 0.10~75ms로, Android는 2,548ms 이하에서 16~67ms로 감소
+- 대가로 이벤트의 38~56%를 폐기, 폐기 건수는 `PullResult.dropped`로 확인
+- B 한도 도달: 측정 도구가 B의 처리 대기 한도(2만 건 또는 64MB)에 닿아 발행을 멈춘 실행 수, 한도가 없는 앱에서는 처리 대기가 계속 증가
+- 메모리는 iOS에서만 차이, Android는 3회 범위가 겹침
+- 700ms 막힘은 서버 메시지 5,000/s와 카메라 720p에서만 차이
+	- 서버 메시지 5,000/s의 이벤트 지연 상위 1%는 iOS 675ms에서 184ms로, Android 686ms에서 194ms로 감소
+	- 카메라 720p의 이벤트 지연 상위 1%는 iOS 680ms에서 376ms로, Android 684ms에서 379ms로 감소
+- 50ms 막힘은 Android 오디오 청크 50/s의 이벤트 지연 상위 1%만 217ms에서 86ms로 감소
+- 주의: 측정 도구의 한도가 없던 Android 실행에서 B가 카메라 720p와 5초 막힘 조합에서 `OutOfMemoryError`로 앱 종료, 한 번의 기록
 
-### 4. Batch 고정 비용 핸들러의 처리량 회복
+### 효과가 없거나 오히려 나쁜 조건
 
-> **문제**: Batch마다 고정 비용이 드는 핸들러에서 양보 판정을 처리 시간 기준으로 바꾼 뒤 처리량이 바꾸기 전보다 감소
->
-> **해결**: `pull` 건수를 정하는 값을 Batch 고정 비용과 건당 증가 시간 `marginMs`로 구분
->
-> **성과**: 고정 비용 8ms 핸들러의 처리량이 iOS는 90/s에서 3,841/s로, Android는 1,164/s에서 2,571/s로 회복
+- 처리가 이벤트를 따라가는 조건(핸들러 오버 0.5와 0.9, 50ms 막힘)은 B와 비슷
+	- iOS는 처리량이 같고 이벤트 지연 중앙값 차이가 0.06ms 이내
+	- Android는 일부 조합에서 Q가 B보다 악화
+		- 핸들러 오버 0.9의 센서 200/s는 처리량이 200건/초에서 154건/초로, 이벤트 지연 상위 1%가 149ms에서 3,192ms로 악화
+		- 핸들러 오버 0.5의 서버 메시지 5,000/s는 Q가 6.7%를 폐기하고 B는 폐기 없이 처리
+	- 주의: Android에서 처리가 따라가는 조건의 Q 악화 원인은 확인 못함
+- Batch마다 고정 비용(8ms)이 드는 핸들러는 Q가 JS 타이머를 막음(iOS만 측정)
+	- 센서 200/s와 1,000/s, 서버 메시지 1,000/s에서 루프 지연 상위 1%가 B 약 8ms, Q 약 10,000ms
+	- 주의: B는 단건 전달이라 Batch 고정 비용을 내지 않아 두 경로의 조건이 같지 않음
+	- 주의: 원인은 확인 못함. 양보 규칙 때문이라면 라이브러리 쪽 문제
 
-| 플랫폼 | Batch 고정 비용 | 양보 판정 변경 전 (건/초) | 양보 판정 변경 후 (건/초) | `pull` 건수 결정 변경 후 (건/초) |
-|---|---|---|---|---|
-| iOS | 8ms | 3,840 | 90 | 3,841 |
-| iOS | 16ms | 2,770 | 60 | 2,768 |
-| Android | 8ms | 1,902 | 1,164 | 2,571 |
-| Android | 16ms | 1,888 | 373 | 1,844 |
+### 측정 조건
 
 | 항목 | 내용 |
 |---|---|
-| 기기 | iOS는 iPhone 18 Pro 시뮬레이터, Android는 `velo_example` 에뮬레이터 |
-| 빌드 | 양보 판정 변경 전, 변경 후, `pull` 건수 결정 변경 후를 각각 Release로 빌드 |
-| 구간 | 3회 측정, 최대 처리 속도의 90%로 발행, 3회 범위가 겹치지 않을 때만 차이로 봄 |
-
-- 처리량은 핸들러가 1초에 처리한 이벤트 건수의 3회 중앙값이며 Q 경로만 측정
-- Batch 고정 비용은 `onBatch` 호출마다 드는 처리 시간으로, 건수와 무관하게 Batch당 한 번 소비
-- 핸들러는 Batch 고정 비용 8ms 또는 16ms를 쓰는 모의 핸들러
-- 주의: Android 큰 이벤트 시나리오의 JS 타이머 밀림(루프 지연 p99)이 양보 판정 변경 후 23.30ms에서 `pull` 건수 결정 변경 후 40.77ms로 증가, 원인 특정 못함
-
-### 1~3의 측정 조건
-
-| 항목 | 내용 |
-|---|---|
-| 기기 | iOS는 iPhone 18 Pro 시뮬레이터, Android는 `velo_example` 에뮬레이터(`arm64-v8a`) |
-| 빌드 | Release, 양보 판정을 처리 시간 기준으로 바꾼 뒤이며 `pull` 건수 결정을 바꾸기 전의 `subscribe` |
-| 시나리오 | 크기 1KB, 64KB, 1MB와 발행 속도와 핸들러를 조합한 14개 |
-| 구간 | 워밍업 2초, 측정 8초, 시나리오당 3회, 회차마다 B와 Q의 순서를 섞음 |
+| 기기 | iOS는 iPhone 18 Pro 시뮬레이터(iOS 27.0), Android는 `velo_example` 에뮬레이터(Android 16) |
+| 빌드 | Release |
+| 이벤트 | 센서(가속도·자이로 샘플) 128B 100/s·200/s·1,000/s, 오디오 청크(48kHz 32비트 스테레오 PCM) 20ms 7,680B 50/s와 100ms 38,400B 10/s, 서버 메시지(JSON, 크기 혼합) 평균 약 1.5KB 100/s·1,000/s·5,000/s, 카메라(YUV420 영상 한 장) VGA 460,800B와 720p 1,382,400B 30/s |
+| 핸들러 오버 | 0.5, 0.9, 1.2, JS 막힘 없음 |
+| JS 막힘 | 50ms, 700ms, 5초를 2초 간격으로, 가벼운 핸들러 |
+| 구간 | 워밍업 2초, 측정 8초, 조합당 3회, 회차마다 B와 Q의 순서를 섞음 |
+| 규모 | 이벤트 10종 × (핸들러 오버 3단계 + JS 막힘 3단계) = 60조합, 플랫폼당 360회 |
 
 ### 측정의 한계
 
-- 주의: 시뮬레이터와 에뮬레이터에서 인공 핸들러로만 측정해 실제 앱의 JS 부하와 UI 프레임 영향은 확인 못함
-- 주의: 현재 `develop`의 `pull` 건수 결정은 1~3의 측정 이후 변경, B와의 비교는 재측정 안 함
+- 주의: 시뮬레이터와 에뮬레이터에서만 측정해 실제 앱의 JS 부하와 UI 프레임 영향은 확인 못함
+- 주의: 센서 128B, 오디오 청크 길이, 서버 메시지의 크기 분포는 근거 자료 없이 정한 가정
+- 주의: 핸들러 오버 0.5, 0.9, 1.2와 JS 막힘 50ms, 700ms, 5초는 부하 시험 관행과 Android 기준을 빌린 값이며 실제 앱이 이런 오버로드를 얼마나 자주 겪는지는 측정 안 함
 - 주의: B와 Q를 같은 프로세스에서 연속 실행해 메모리 비교는 대략적인 값
 - 주의: `subscribe`의 내부 상수는 장치에서 정하지 않음
 
@@ -268,13 +260,19 @@ const disconnect = stream.connect(producer);
 - iOS는 `min_ios_version_supported`를 따르며 React Native 0.88.0에서는 15.1
 - Android는 라이브러리 기본값(`EventStream_minSdkVersion`)이 23이고 예제 앱의 `minSdkVersion`이 24
 - 주의: visionOS 1.0은 podspec에 선언만 있고 visionOS와 Android SDK 23 빌드는 CI에서 미확인
-- 네이티브 생산자는 iOS에서 Swift, Android에서 Kotlin으로 구현
+- 네이티브 producer는 iOS에서 Swift, Android에서 Kotlin으로 구현
 - 배포물에 Nitro 생성 코드(`nitrogen/`)와 빌드 결과(`lib/`) 포함, 사용 앱의 코드 생성 실행 불필요
 
 ## 한계
 
 - 큐 크기(1024건, 16 MiB)와 가득 찼을 때의 정책은 측정으로 정하지 않은 고정값, 설정 API 없음
-- 스트림당 생산자 하나와 구독자 하나만 지원
+- 큐가 가득 차면 오래된 이벤트부터 버려 손실이 허용되지 않는 데이터에는 부적합
+	- 버린 건수만 `PullResult.dropped`로 확인 가능하고 버린 이벤트는 복구 불가
+	- 가득 찼을 때 producer에 `push` 중단을 알리는 방법 없음
+- 스트림당 producer 하나와 subscriber 하나만 지원
+- npm 레지스트리에 올라가 있지 않아 `npm install react-native-velo`로 설치 불가
+- `^0.1.0` 같은 버전 범위로 자동 업데이트 불가, 버전마다 URL 변경
+- JS가 이벤트를 따라가는 조건에서는 B와 차이가 거의 없고 일부 조합은 오히려 이벤트 지연이 늘어남, [효과가 없거나 오히려 나쁜 조건](#효과가-없거나-오히려-나쁜-조건) 참고
 - 측정 조건의 한계는 [측정의 한계](#측정의-한계) 참고
 
 ## 라이선스

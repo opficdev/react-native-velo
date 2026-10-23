@@ -383,7 +383,7 @@ export async function runConsumerSuite(
           onProgress('중단 thermal');
           return;
         }
-        const maxRate = calibratedRate(rateId(item));
+        const maxRate = item.rate ?? calibratedRate(rateId(item));
         onProgress(
           `회차 ${round} ${i + 1}/${plan.length} ${path} ${id} x${load}`,
         );

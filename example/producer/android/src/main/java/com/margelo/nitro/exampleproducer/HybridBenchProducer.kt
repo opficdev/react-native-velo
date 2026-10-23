@@ -16,6 +16,7 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     private var perSecond = 1000
     private var durationMs = 10_000
     private var generator: BenchGenerator? = null
+    private var callbackLimit: BenchGenerator.CallbackLimit? = null
 
     @Synchronized
     override fun configure(
@@ -46,7 +47,7 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     @Synchronized
     override fun start(stream: HybridEventQueueSpec) {
         generator?.stop()
-        val next = BenchGenerator(payload, perSecond, durationMs) { buffer -> stream.push(buffer) }
+        val next = BenchGenerator(payload, perSecond, durationMs, null) { buffer -> stream.push(buffer) }
         generator = next
         next.start()
     }
@@ -59,7 +60,7 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     @Synchronized
     override fun startCallback(onEvent: (data: ArrayBuffer) -> Unit) {
         generator?.stop()
-        val next = BenchGenerator(payload, perSecond, durationMs, onEvent)
+        val next = BenchGenerator(payload, perSecond, durationMs, callbackLimit, onEvent)
         generator = next
         next.start()
     }
@@ -68,6 +69,30 @@ class HybridBenchProducer : HybridBenchProducerSpec() {
     override fun stopCallback() {
         generator?.stop()
     }
+
+    @Synchronized
+    override fun setCallbackLimit(
+        maxEvents: Double,
+        maxBytes: Double,
+    ) {
+        callbackLimit =
+            if (maxEvents <= 0 && maxBytes <= 0) {
+                null
+            } else {
+                BenchGenerator.CallbackLimit(
+                    if (0 < maxEvents) maxEvents.toInt() else Int.MAX_VALUE,
+                    if (0 < maxBytes) maxBytes.toLong() else Long.MAX_VALUE,
+                )
+            }
+    }
+
+    @Synchronized
+    override fun ackReceived(count: Double) {
+        generator?.ack(count.toInt())
+    }
+
+    @Synchronized
+    override fun callbackLimitReached(): Boolean = generator?.limitReached ?: false
 
     @Synchronized
     override fun finished(): Boolean = generator?.isFinished ?: true

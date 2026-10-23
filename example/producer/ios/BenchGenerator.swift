@@ -20,6 +20,12 @@ struct BenchWindow {
   let costs: [UInt32]
 }
 
+// 콜백 경로의 처리 대기 한도
+struct BenchCallbackLimit {
+  let maxEvents: Int
+  let maxBytes: Int
+}
+
 // 일정한 속도로 버퍼를 만들어 sink에 넘기는 생성기
 // 전용 스레드 실행
 // 먼 예정 시각은 sleep 대기 뒤 마지막 200µs 이상 스핀 대기
@@ -35,30 +41,55 @@ final class BenchGenerator {
   private var costs = [UInt32]()
   private var lates = [Bool]()
   private var emitted = 0
+  // 발행한 이벤트 바이트의 누적 합
+  // 인덱스 n은 앞 n건의 합
+  private var cumulativeBytes = [0]
+  private let limit: BenchCallbackLimit?
+  // 아래 값은 cancelLock 안에서만 접근
   private var cancelled = false
   private let cancelLock = NSLock()
   private var finishedFlag = false
+  // JS가 알린 받은 이벤트 수
+  private var acked = 0
+  private var limitReachedFlag = false
 
   init(
     payload: BenchPayload,
     perSecond: Int,
     durationMs: Int,
+    limit: BenchCallbackLimit? = nil,
     sink: @escaping (BenchBuffer) -> Void
   ) {
     self.payload = payload
     self.perSecond = perSecond
     self.durationNs = UInt64(durationMs) * 1_000_000
+    self.limit = limit
     self.sink = sink
     let capacity = perSecond * (durationMs / 1000 + 2)
     starts.reserveCapacity(capacity)
     costs.reserveCapacity(capacity)
     lates.reserveCapacity(capacity)
+    cumulativeBytes.reserveCapacity(capacity + 1)
   }
 
   var isFinished: Bool {
     cancelLock.lock()
     defer { cancelLock.unlock() }
     return finishedFlag
+  }
+
+  // 처리 대기 한도로 발행을 멈췄는지 여부
+  var limitReached: Bool {
+    cancelLock.lock()
+    defer { cancelLock.unlock() }
+    return limitReachedFlag
+  }
+
+  // JS가 받은 이벤트 수 갱신
+  func ack(count: Int) {
+    cancelLock.lock()
+    acked = count
+    cancelLock.unlock()
   }
 
   func start() {
@@ -106,6 +137,18 @@ final class BenchGenerator {
     return cancelled
   }
 
+  // 발행 수가 JS가 받은 수보다 한도 넘게 앞섰는지 여부
+  private func overLimit() -> Bool {
+    guard let limit else {
+      return false
+    }
+    cancelLock.lock()
+    let received = min(acked, emitted)
+    cancelLock.unlock()
+    return limit.maxEvents < emitted - received
+      || limit.maxBytes < cumulativeBytes[emitted] - cumulativeBytes[received]
+  }
+
   private func run() {
     let interval = UInt64(1_000_000_000 / perSecond)
     let begin = benchNowNs()
@@ -136,8 +179,15 @@ final class BenchGenerator {
       starts.append(tEmit)
       costs.append(UInt32(truncatingIfNeeded: after - tEmit))
       lates.append(1_000_000 <= tEmit - scheduled)
+      cumulativeBytes.append(cumulativeBytes[emitted] + payload.size(at: index))
       emitted += 1
       index += 1
+      if overLimit() {
+        cancelLock.lock()
+        limitReachedFlag = true
+        cancelLock.unlock()
+        break
+      }
     }
     cancelLock.lock()
     finishedFlag = true
