@@ -19,6 +19,7 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
   private var perSecond = 1000
   private var durationMs = 10_000
   private var generator: BenchGenerator?
+  private var callbackLimit: BenchCallbackLimit?
 
   func configure(
     size: Double,
@@ -87,6 +88,7 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
       payload: payload,
       perSecond: perSecond,
       durationMs: durationMs,
+      limit: callbackLimit,
       sink: onEvent
     )
     generator = next
@@ -97,6 +99,34 @@ final class HybridBenchProducer: HybridBenchProducerSpec {
     lock.lock()
     defer { lock.unlock() }
     generator?.stop()
+  }
+
+  func setCallbackLimit(
+    maxEvents: Double,
+    maxBytes: Double
+  ) throws {
+    lock.lock()
+    defer { lock.unlock() }
+    guard 0 < maxEvents || 0 < maxBytes else {
+      callbackLimit = nil
+      return
+    }
+    callbackLimit = BenchCallbackLimit(
+      maxEvents: 0 < maxEvents ? Int(maxEvents) : Int.max,
+      maxBytes: 0 < maxBytes ? Int(maxBytes) : Int.max
+    )
+  }
+
+  func ackReceived(count: Double) throws {
+    lock.lock()
+    defer { lock.unlock() }
+    generator?.ack(count: Int(count))
+  }
+
+  func callbackLimitReached() throws -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return generator?.limitReached ?? false
   }
 
   func finished() throws -> Bool {

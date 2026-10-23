@@ -69,6 +69,15 @@ export interface BenchProducer extends HybridObject<{
   startCallback(onEvent: (data: ArrayBuffer) => void): void;
   // 콜백 경로 중단과 콜백 참조 해제
   stopCallback(): void;
+  // 다음 콜백 경로의 처리 대기 한도(건수와 바이트)
+  // 0은 한도 없음
+  // 발행 수가 ackReceived로 받은 수보다 한도 넘게 앞서면 생성기의 발행 중단
+  // JS 스레드가 막혀 JS 쪽 한도 검사가 돌지 못하는 동안의 네이티브 판단
+  setCallbackLimit(maxEvents: number, maxBytes: number): void;
+  // JS가 지금까지 받은 콜백 경로의 이벤트 수
+  ackReceived(count: number): void;
+  // 처리 대기 한도로 생성기가 발행을 멈췄는지 여부
+  callbackLimitReached(): boolean;
   // 지정한 시간만큼 실행한 생성기가 끝났는지 여부
   finished(): boolean;
   // [fromNs, toNs) 구간에 발행한 이벤트의 통계
