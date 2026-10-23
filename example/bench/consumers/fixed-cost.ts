@@ -7,6 +7,7 @@ import type { Consumer } from './types';
 export function createFixedCost(
   producer: BenchProducer,
   batchMs: number,
+  perItemNs = itemNs,
 ): Consumer {
   const spin = (ns: number) => {
     const until = producer.nowNs() + ns;
@@ -16,7 +17,7 @@ export function createFixedCost(
   };
   return {
     onItem() {
-      spin(itemNs);
+      spin(perItemNs);
     },
     onBatchEnd(single) {
       if (!single) {

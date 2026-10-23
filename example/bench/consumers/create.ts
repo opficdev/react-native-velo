@@ -1,5 +1,6 @@
 import type { BenchProducer } from 'example-producer';
 import type { ConsumerCase } from '../scenarios';
+import { slowItemNs } from '../scenarios';
 import { createFixedCost } from './fixed-cost';
 import { createParse } from './parse';
 import { createSetState } from './set-state';
@@ -22,5 +23,7 @@ export function createConsumer(
       return createSetState(dispatch);
     case 'fixedCost':
       return createFixedCost(producer, item.batchMs);
+    case 'slow':
+      return createFixedCost(producer, 0, slowItemNs(item));
   }
 }

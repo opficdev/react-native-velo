@@ -1,5 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  AppState,
+  Platform,
+  Pressable,
+  Settings,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { createBenchProducer } from 'example-producer';
 import {
   calibrate,
@@ -12,7 +20,15 @@ import type { Dispatch } from './bench/consumers/types';
 import type { CommitProbe } from './bench/probes/commit';
 import { InputProbe } from './bench/probes/input';
 import { runSuite } from './bench/runner';
-import { consumerCases, loads, scenarios } from './bench/scenarios';
+import {
+  caseId,
+  consumerCases,
+  loads,
+  realisticCases,
+  realisticOverloadCases,
+  scenarios,
+} from './bench/scenarios';
+import type { ConsumerCase } from './bench/scenarios';
 import { runSweep } from './bench/sweep';
 
 interface Mounted {
@@ -51,6 +67,54 @@ function App() {
     }
     setRunning(false);
   };
+
+  const runRealistic = (cases: ConsumerCase[]) =>
+    run(() =>
+      runConsumerSuite(context(), {
+        cases,
+        loads: [1],
+        paths: ['B', 'Q'],
+        rounds: 3,
+      }),
+    );
+
+  // iOS 실행 인자 -veloAutorun으로 현실 빈도 측정을 바로 시작
+  // realistic은 JS 여유 조합, overload는 JS 오버로드 조합
+  useEffect(() => {
+    if (Platform.OS !== 'ios') {
+      return;
+    }
+    const autorun = Settings.get('veloAutorun');
+    const all =
+      autorun === 'realistic'
+        ? realisticCases
+        : autorun === 'overload'
+          ? realisticOverloadCases
+          : undefined;
+    if (all === undefined) {
+      return;
+    }
+    // 실행 인자 -veloCases로 쉼표로 구분한 조합 이름만 남기는 필터
+    const only = Settings.get('veloCases');
+    const cases =
+      typeof only === 'string' && only !== ''
+        ? all.filter((item) => only.split(',').includes(caseId(item)))
+        : all;
+    // 실행 직후 active 전환 전에 시작하면 앱 상태 프로브가 처음부터 취소로 표시되는 문제
+    // active가 된 뒤의 시작
+    if (AppState.currentState === 'active') {
+      runRealistic(cases);
+      return;
+    }
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'active') {
+        subscription.remove();
+        runRealistic(cases);
+      }
+    });
+    return () => subscription.remove();
+    // 마운트 때 한 번만 실행
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -134,6 +198,20 @@ function App() {
         }
       >
         <Text>입력 지연</Text>
+      </Pressable>
+      <Pressable
+        testID="realistic"
+        style={styles.button}
+        onPress={() => runRealistic(realisticCases)}
+      >
+        <Text>현실 측정</Text>
+      </Pressable>
+      <Pressable
+        testID="realistic-overload"
+        style={styles.button}
+        onPress={() => runRealistic(realisticOverloadCases)}
+      >
+        <Text>현실 과부하 측정</Text>
       </Pressable>
       <Pressable
         style={styles.button}
