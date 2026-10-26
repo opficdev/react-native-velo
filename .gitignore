@@ -31,3 +31,7 @@ vendor/
 
 # TypeScript 증분 빌드 정보
 *.tsbuildinfo
+
+# draw.io 작업 파일
+*.drawio
+*.drawio.bkp
