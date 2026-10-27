@@ -10,7 +10,7 @@ import { startBusy } from './probes/busy';
 import { frameMetrics, startJsFrames } from './probes/frames';
 import type { InputProbe } from './probes/input';
 import { watchAppState } from './probes/app-state';
-import { stepMetrics } from './replay';
+import { causeMetrics, stepLog, stepMetrics } from './step-metrics';
 import type { Progress } from './runner';
 import type { RunExtension } from './runner';
 import { runOnce } from './runner';
@@ -166,7 +166,7 @@ async function runCase(
           stopBusy?.();
           frames = stopProbes?.();
         },
-        finish: ({ from, to }, steps, bytes, state) => {
+        finish: ({ from, to }, steps, bytes, state, cause) => {
           const thermalWorst = frames?.record.thermalWorst ?? 'nominal';
           const discardReason = state.cancelled
             ? 'background'
@@ -177,6 +177,7 @@ async function runCase(
                 : undefined;
           return {
             session,
+            id,
             suite: 'consumer',
             purpose,
             pattern: item.pattern,
@@ -207,6 +208,14 @@ async function runCase(
               to / 1e6,
               probe.renderSpans(from, to),
             ),
+            ...causeMetrics(
+              steps,
+              cause.zeroTimers,
+              cause.events,
+              from / 1e6,
+              to / 1e6,
+            ),
+            stepLog: stepLog(steps, from / 1e6, to / 1e6),
             ...input.summary(),
             consumerFailed: (consumer as { failed?: number }).failed ?? 0,
             valid: discardReason === undefined,
@@ -358,7 +367,7 @@ export async function runConsumerSuite(
       type Item = { item: ConsumerCase; path: BenchPath; load: number };
       const plan: Item[] = options.cases.flatMap((item) =>
         (item.loads ?? options.loads).flatMap((load) =>
-          options.paths.map((path) => ({ item, path, load })),
+          (item.paths ?? options.paths).map((path) => ({ item, path, load })),
         ),
       );
       const random = mulberry32(round);
@@ -383,7 +392,7 @@ export async function runConsumerSuite(
           onProgress('중단 thermal');
           return;
         }
-        const maxRate = calibratedRate(rateId(item));
+        const maxRate = item.rate ?? calibratedRate(rateId(item));
         onProgress(
           `회차 ${round} ${i + 1}/${plan.length} ${path} ${id} x${load}`,
         );

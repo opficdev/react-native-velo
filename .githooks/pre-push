@@ -24,25 +24,17 @@ do
 		continue
 	fi
 
+	# 원격에 없는 새 브랜치 게시의 리뷰 제외
 	case "$remote_sha" in
-		*[!0]*)
-			base=$remote_sha
-			if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
-				printf '%s\n' "리뷰 기준 커밋을 찾을 수 없습니다. git fetch $remote 실행 후 다시 푸시하세요." >&2
-				exit 1
-			fi
-			;;
-		*)
-			if ! base_ref=$(git symbolic-ref --quiet "refs/remotes/$remote/HEAD"); then
-				printf '%s\n' "원격 기본 브랜치를 찾을 수 없습니다. git remote set-head $remote -a 실행 후 다시 푸시하세요." >&2
-				exit 1
-			fi
-			if ! base=$(git merge-base "$base_ref" "$local_sha"); then
-				printf '%s\n' '리뷰 기준이 될 공통 조상 커밋을 찾을 수 없습니다.' >&2
-				exit 1
-			fi
-			;;
+		*[!0]*) ;;
+		*) continue ;;
 	esac
+
+	base=$remote_sha
+	if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+		printf '%s\n' "리뷰 기준 커밋을 찾을 수 없습니다. git fetch $remote 실행 후 다시 푸시하세요." >&2
+		exit 1
+	fi
 
 	if git diff --quiet "$base" "$local_sha" --; then
 		continue
