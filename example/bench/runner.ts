@@ -3,7 +3,8 @@ import { createEventStream } from 'react-native-velo';
 import type { PullResult } from 'react-native-velo';
 import type { BenchPath, Scenario } from './scenarios';
 import type { Consumer } from './consumers/types';
-import type { Step } from './replay';
+import type { Events, Step } from './step-metrics';
+import { YieldProbe } from './probes/yields';
 import { scenarios, workNs } from './scenarios';
 import { mulberry32, quantile, slope, sortedCopy } from './stats';
 
@@ -43,11 +44,16 @@ export interface RunExtension {
   // 드레인이 끝난 직후의 프로브 종료
   onStop?: () => void;
   // 프로브 결과 필드와 step 기록을 받는 마무리
+  // zeroTimers는 실행 중 기록한 0 지연 타이머, events는 이벤트별 발행과 처리 시각
   finish?: (
     window: { from: number; to: number },
     steps: Step[],
     bytes: number[],
     state: { incomplete: boolean; cancelled: boolean },
+    cause: {
+      zeroTimers: { at: number; run: number }[];
+      events: Events;
+    },
   ) => Record<string, unknown>;
 }
 
@@ -77,6 +83,7 @@ export async function runOnce(
   const lags: number[] = [];
   const steps: Step[] = [];
   const stepBytes: number[] = [];
+  const yields = new YieldProbe(producer);
 
   producer.configure(size, rate, runMs);
   if (ext?.sizes) {
@@ -126,6 +133,11 @@ export async function runOnce(
 
   const onBatch = (batch: PullResult) => {
     const begin = producer.nowNs();
+    const resumed = yields.current();
+    const firstEmit =
+      0 < batch.items.length
+        ? new DataView(batch.items[0]).getFloat64(0, true) / 1e6
+        : begin / 1e6;
     dropped += batch.dropped;
     let bytes = 0;
     for (const item of batch.items) {
@@ -139,6 +151,10 @@ export async function runOnce(
         begin: begin / 1e6,
         end: end / 1e6,
         items: batch.items.length,
+        dropped: batch.dropped,
+        firstEmit,
+        yieldAt: resumed?.at,
+        resumeAt: resumed?.run,
       });
       stepBytes.push(bytes);
     }
@@ -165,6 +181,9 @@ export async function runOnce(
   setTimeout(tick, 10);
 
   ext?.onStart?.({ runStart, from: windowFrom, to: windowTo });
+  if (ext) {
+    yields.start();
+  }
   let release: () => void;
   if (path === 'Q') {
     const stream = createEventStream();
@@ -181,8 +200,19 @@ export async function runOnce(
       ext?.noGuard ? 0 : backlogLimitBytes,
     );
     producer.startCallback((item) => {
+      const begin = producer.nowNs();
       handle(item);
       ext?.consumer?.onBatchEnd(true);
+      if (ext) {
+        steps.push({
+          begin: begin / 1e6,
+          end: producer.nowNs() / 1e6,
+          items: 1,
+          dropped: 0,
+          firstEmit: new DataView(item).getFloat64(0, true) / 1e6,
+        });
+        stepBytes.push(item.byteLength);
+      }
     });
     release = () => producer.stopCallback();
   }
@@ -246,6 +276,7 @@ export async function runOnce(
   } finally {
     ticking = false;
     release();
+    yields.stop();
     ext?.onStop?.();
   }
 
@@ -310,10 +341,16 @@ export async function runOnce(
     stepP99Ms: quantile(stepSorted, 0.99),
     stepMaxMs: stepSorted.length > 0 ? stepSorted[stepSorted.length - 1] : 0,
     stepItemsP50: quantile(itemsSorted, 0.5),
-    ...ext?.finish?.({ from: windowFrom, to: windowTo }, steps, stepBytes, {
-      incomplete,
-      cancelled,
-    }),
+    ...ext?.finish?.(
+      { from: windowFrom, to: windowTo },
+      steps,
+      stepBytes,
+      { incomplete, cancelled },
+      {
+        zeroTimers: yields.timers,
+        events: { emit: emitTimes, ready: readyTimes, count },
+      },
+    ),
     cancelled,
     overloaded,
   };

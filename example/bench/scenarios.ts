@@ -74,6 +74,10 @@ export interface ConsumerCase {
   // slow 소비자의 핸들러 오버 정도
   // 이벤트 하나의 처리 시간을 발행 간격으로 나눈 값
   handlerLoad?: number;
+  // 이 조합에만 적용하는 경로
+  paths?: BenchPath[];
+  // 경로 B의 단건 전달 때마다도 묶음 고정 비용을 쓰는 변형
+  batchOnCall?: boolean;
 }
 
 // 부하 배수
@@ -229,7 +233,8 @@ export function rateId(item: ConsumerCase) {
       : item.pattern === 'slow'
         ? `${item.pattern}-x${item.handlerLoad}-${item.distribution}`
         : `${item.pattern}-${item.distribution}`;
-  return item.rate === undefined ? base : `${base}-r${item.rate}`;
+  const rated = item.rate === undefined ? base : `${base}-r${item.rate}`;
+  return item.batchOnCall ? `${rated}-bc` : rated;
 }
 
 export function caseId(item: ConsumerCase) {
@@ -281,3 +286,33 @@ export function meanSize(table: Int32Array) {
   }
   return sum / table.length;
 }
+
+// Q가 B보다 나빴던 조건의 원인 확인 조합
+// fixedCost 8ms 조합과 B에도 호출마다 고정 비용을 매긴 변형
+const causeFixedBase = realisticCases.filter(
+  (item) => item.pattern === 'fixedCost' && item.distribution !== 'pcm20',
+);
+export const causeFixedCases: ConsumerCase[] = [
+  ...causeFixedBase,
+  ...causeFixedBase.map((item) => ({
+    ...item,
+    batchOnCall: true,
+    paths: ['B' as const],
+  })),
+];
+
+// 핸들러 오버 1.2의 센서 200/s, 0.9의 센서 200/s, 0.5의 서버 메시지 5,000/s와 센서 1,000/s
+const causeSlowIds = [
+  'slow-x1.2-imu-r200',
+  'slow-x0.9-imu-r200',
+  'slow-x0.5-feed-r5000',
+  'slow-x0.5-imu-r1000',
+];
+export const causeSlowCases: ConsumerCase[] = realisticOverloadCases.filter(
+  (item) => causeSlowIds.includes(caseId(item)),
+);
+
+export const causeCases: ConsumerCase[] = [
+  ...causeFixedCases,
+  ...causeSlowCases,
+];

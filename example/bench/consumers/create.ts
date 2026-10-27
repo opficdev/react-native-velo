@@ -22,7 +22,12 @@ export function createConsumer(
     case 'setState':
       return createSetState(dispatch);
     case 'fixedCost':
-      return createFixedCost(producer, item.batchMs);
+      return createFixedCost(
+        producer,
+        item.batchMs,
+        undefined,
+        item.batchOnCall,
+      );
     case 'slow':
       return createFixedCost(producer, 0, slowItemNs(item));
   }

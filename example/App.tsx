@@ -22,6 +22,8 @@ import type { CommitProbe } from './bench/probes/commit';
 import { InputProbe } from './bench/probes/input';
 import { runSuite } from './bench/runner';
 import {
+  causeCases,
+  causeSlowCases,
   caseId,
   consumerCases,
   loads,
@@ -31,6 +33,14 @@ import {
 } from './bench/scenarios';
 import type { ConsumerCase } from './bench/scenarios';
 import { runSweep } from './bench/sweep';
+
+// 실행 인자 -veloAutorun 값과 조합 목록의 대응
+const autorunCases: Record<string, ConsumerCase[]> = {
+  realistic: realisticCases,
+  overload: realisticOverloadCases,
+  cause: causeCases,
+  causeSlow: causeSlowCases,
+};
 
 interface Mounted {
   probe: CommitProbe;
@@ -81,17 +91,13 @@ function App() {
 
   // iOS 실행 인자 -veloAutorun으로 현실 빈도 측정을 바로 시작
   // realistic은 JS 여유 조합, overload는 JS 오버로드 조합
+  // cause와 causeSlow는 Q가 B보다 나빴던 조건의 원인 확인 조합
   useEffect(() => {
     if (Platform.OS !== 'ios') {
       return;
     }
     const autorun = Settings.get('veloAutorun');
-    const all =
-      autorun === 'realistic'
-        ? realisticCases
-        : autorun === 'overload'
-          ? realisticOverloadCases
-          : undefined;
+    const all = typeof autorun === 'string' ? autorunCases[autorun] : undefined;
     if (all === undefined) {
       return;
     }
@@ -209,6 +215,20 @@ function App() {
             onPress={() => runRealistic(realisticCases)}
           >
             <Text>현실 측정</Text>
+          </Pressable>
+          <Pressable
+            testID="cause"
+            style={styles.button}
+            onPress={() => runRealistic(causeCases)}
+          >
+            <Text>원인 측정</Text>
+          </Pressable>
+          <Pressable
+            testID="cause-slow"
+            style={styles.button}
+            onPress={() => runRealistic(causeSlowCases)}
+          >
+            <Text>원인 측정 핸들러</Text>
           </Pressable>
           <Pressable
             testID="realistic-overload"
