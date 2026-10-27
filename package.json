@@ -1,6 +1,6 @@
 {
   "name": "react-native-velo",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "네이티브 이벤트가 몰릴 때 JS가 감당할 수 있는 만큼만 가져가게 하는 React Native 라이브러리",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
