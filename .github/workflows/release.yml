@@ -250,3 +250,117 @@ jobs:
           GH_REPO: ${{ github.repository }}
           VERSION: ${{ needs.verify.outputs.version }}
         run: gh release create "$VERSION" "$RUNNER_TEMP"/pack/*.tgz --verify-tag --title "$VERSION" --generate-notes
+
+  release-issues:
+    name: Release issues
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      pull: ${{ steps.extract.outputs.pull }}
+      issues: ${{ steps.extract.outputs.issues }}
+    steps:
+      - name: Extract issues from release pull request
+        id: extract
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pull=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+            --jq "first(.[] | select(.base.ref == \"main\" and .merge_commit_sha == \"$GITHUB_SHA\")) | .number")
+          if [ -z "$pull" ]; then
+            echo "::warning::$GITHUB_SHA 를 병합 커밋으로 가진 main 대상 PR이 없어 닫을 이슈를 찾지 못함"
+            echo "릴리스 PR을 찾지 못해 닫을 이슈 없음" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          issues=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$pull" --jq .body \
+            | perl -0777 -ne 's/```.*?```//gs; s/~~~.*?~~~//gs; s/<!--.*?-->//gs; s/`[^`\n]*`//g; s/^[ \t]*>.*$//gm; print "$1\n" while /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?[ \t]+#(\d+)\b/gi' \
+            | sort -un \
+            | paste -sd ' ' -)
+          echo "pull=$pull" >> "$GITHUB_OUTPUT"
+          echo "issues=$issues" >> "$GITHUB_OUTPUT"
+          if [ -z "$issues" ]; then
+            echo "::notice::릴리스 PR #$pull 의 본문에 닫기 키워드가 없음"
+            echo "릴리스 PR #$pull 의 본문에 닫을 이슈 없음" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "릴리스 PR #$pull 에서 닫을 이슈: $issues"
+            echo "릴리스 PR #$pull 에서 닫을 이슈: $issues" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  close-issue:
+    name: Close issues
+    needs: [verify, publish, release-issues]
+    if: needs.publish.result == 'success' && needs.release-issues.outputs.issues != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      issues: write
+    steps:
+      - name: Close issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          PULL: ${{ needs.release-issues.outputs.pull }}
+          ISSUES: ${{ needs.release-issues.outputs.issues }}
+        run: |
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$VERSION"
+          failed=0
+          {
+            echo "| 이슈 | 결과 |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for issue in $ISSUES; do
+            if ! info=$(gh api "repos/$GITHUB_REPOSITORY/issues/$issue" --jq '[.state, (.pull_request != null)] | @tsv' 2>&1); then
+              case "$info" in
+                *"HTTP 404"* | *"HTTP 410"*)
+                  echo "::warning::#$issue 를 찾을 수 없어 건너뜀"
+                  echo "| #$issue | 건너뜀: 없음 |" >> "$GITHUB_STEP_SUMMARY"
+                  ;;
+                *)
+                  echo "::error::#$issue 조회 실패: $info"
+                  echo "| #$issue | 실패: 조회 |" >> "$GITHUB_STEP_SUMMARY"
+                  failed=1
+                  ;;
+              esac
+              continue
+            fi
+            read -r state is_pull <<< "$info"
+            if [ "$is_pull" = true ]; then
+              echo "::warning::#$issue 는 PR이라 건너뜀"
+              echo "| #$issue | 건너뜀: PR |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            if [ "$state" = closed ]; then
+              echo "::notice::#$issue 는 이미 닫혀 있어 건너뜀"
+              echo "| #$issue | 건너뜀: 이미 닫힘 |" >> "$GITHUB_STEP_SUMMARY"
+              continue
+            fi
+            if ! comments=$(gh api "repos/$GITHUB_REPOSITORY/issues/$issue/comments" --paginate --jq '.[].body'); then
+              echo "::error::#$issue 댓글 조회 실패"
+              echo "| #$issue | 실패: 댓글 조회 |" >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+              continue
+            fi
+            case "$comments" in
+              *"($url)"*) ;;
+              *)
+                if ! gh issue comment "$issue" --body "[$VERSION]($url) 배포 완료로 릴리스 PR #${PULL}에 따라 닫음"; then
+                  echo "::error::#$issue 댓글 작성 실패"
+                  echo "| #$issue | 실패: 댓글 작성 |" >> "$GITHUB_STEP_SUMMARY"
+                  failed=1
+                  continue
+                fi
+                ;;
+            esac
+            if gh issue close "$issue" --reason completed; then
+              echo "| #$issue | 닫음 |" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::#$issue 닫기 실패"
+              echo "| #$issue | 실패: 닫기 |" >> "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+          done
+          exit "$failed"
